@@ -16,6 +16,8 @@ const std::tuple<AudibleAlert, QString, int, float> sound_list[] = {
   // AudibleAlert, file name, loop count
   {AudibleAlert::AUTO_HOLD, "audio_auto_hold.wav", 0, MAX_VOLUME},
   {AudibleAlert::SPEED_DOWN, "audio_speed_down.wav", 0, MAX_VOLUME},
+  {AudibleAlert::REVERSE_GEAR, "reverse_gear.wav", 0, MAX_VOLUME},
+  {AudibleAlert::NNFF, "nnff.wav", 0, MAX_VOLUME},
   {AudibleAlert::ENGAGE, "engage.wav", 0, MAX_VOLUME},
   {AudibleAlert::DISENGAGE, "disengage.wav", 0, MAX_VOLUME},
   {AudibleAlert::REFUSE, "refuse.wav", 0, MAX_VOLUME},
