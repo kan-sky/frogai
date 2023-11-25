@@ -81,7 +81,7 @@ rm selfdrive/modeld/models/supercombo.onnx
 git checkout third_party/
 
 # Mark as prebuilt release
-touch prebuilt
+# touch prebuilt
 
 # Add built files to git
 git add -f .
