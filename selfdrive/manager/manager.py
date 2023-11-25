@@ -31,7 +31,7 @@ def manager_init() -> None:
   set_time(cloudlog)
 
   # save boot log
-  subprocess.call("./bootlog", cwd=os.path.join(BASEDIR, "system/loggerd"))
+  #subprocess.call("./bootlog", cwd=os.path.join(BASEDIR, "system/loggerd"))
 
   params = Params()
   params.clear_all(ParamKeyType.CLEAR_ON_MANAGER_START)
@@ -46,6 +46,8 @@ def manager_init() -> None:
     ("LanguageSetting", "main_en"),
     ("OpenpilotEnabledToggle", "1"),
     ("LongitudinalPersonality", str(log.LongitudinalPersonality.standard)),
+    ("AutoNaviSpeedCtrlStart", "22"),
+    ("AutoNaviSpeedCtrlEnd", "11"),
   ]
   if not PC:
     default_params.append(("LastUpdateTime", datetime.datetime.utcnow().isoformat().encode('utf8')))

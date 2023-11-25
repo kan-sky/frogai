@@ -108,6 +108,9 @@ procs = [
   NativeProcess("bridge", "cereal/messaging", ["./bridge"], notcar),
   PythonProcess("webjoystick", "tools.bodyteleop.web", notcar),
 
+  # NDA neokii
+  PythonProcess("road_speed_limiter", "selfdrive.road_speed_limiter", always_run),
+
   # FrogPilot procs
   PythonProcess("mapd", "selfdrive.mapd", osm),
   PythonProcess("otisserv", "selfdrive.navd.otisserv", always_run),

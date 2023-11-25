@@ -105,6 +105,10 @@ struct CarEvent @0x9b1657f34caf3ad3 {
     roadCameraError @100;
     driverCameraError @101;
     wideRoadCameraError @102;
+
+    # NDA neokii
+    slowingDownSpeedSound @126;
+
     highCpuUsage @105;
     cruiseMismatch @106;
     lkasDisabled @107;
@@ -421,6 +425,7 @@ struct CarControl {
       prompt @6;
       promptRepeat @7;
       promptDistracted @8;
+      speedDown @9;
     }
   }
 
