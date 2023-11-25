@@ -104,6 +104,7 @@ class LongitudinalPlanner:
     self.stopped_for_light_previously = False
 
     self.green_light_count = 0
+    self.overridden_speed = 0
     self.v_offset = 0
     self.v_target = MIN_TARGET_V
 
@@ -177,8 +178,8 @@ class LongitudinalPlanner:
     accel_limits_turns[0] = min(accel_limits_turns[0], self.a_desired + 0.05)
     accel_limits_turns[1] = max(accel_limits_turns[1], self.a_desired - 0.05)
 
-    carstate, modeldata, radarstate = sm['carState'], sm['modelV2'], sm['radarState']
-    have_lead = ConditionalExperimentalMode.detect_lead(sm['radarState'])
+    carcontrol, carstate, modeldata, radarstate = sm['carControl'], sm['carState'], sm['modelV2'], sm['radarState']
+    have_lead = ConditionalExperimentalMode.detect_lead(radarstate)
 
     # Conditional Experimental Mode
     if self.conditional_experimental_mode and sm['controlsState'].enabled:
@@ -186,19 +187,18 @@ class LongitudinalPlanner:
 
     # Green light alert
     if self.green_light_alert:
-      lead = ConditionalExperimentalMode.detect_lead(radarstate)
       standstill = carstate.standstill
 
       self.previously_driving |= not standstill
-      self.previously_driving &= sm['carControl'].drivingGear
+      self.previously_driving &= carcontrol.drivingGear
 
-      stopped_for_light = ConditionalExperimentalMode.stop_sign_and_light(carstate, lead, radarstate.leadOne.dRel, modeldata, v_ego, v_lead) and standstill
+      stopped_for_light = ConditionalExperimentalMode.stop_sign_and_light(carstate, have_lead, radarstate.leadOne.dRel, modeldata, v_ego, v_lead) and standstill
 
       self.green_light_count += 1 if not stopped_for_light and self.stopped_for_light_previously else -1
       self.green_light_count = np.clip(self.green_light_count, 0, 10)
 
       # Only trigger the alert if the green light is detected for 0.5 seconds
-      self.green_light = self.green_light_count >= 10 and self.previously_driving and not lead
+      self.green_light = self.green_light_count >= 10 and self.previously_driving and not have_lead
       # Reset the counter when the green light alert is triggered
       self.green_light_count *= not self.green_light
 
@@ -209,14 +209,23 @@ class LongitudinalPlanner:
     if self.speed_limit_controller:
       desired_speed_limit = SpeedLimitController.desired_speed_limit
 
+      # Override SLC upon gas pedal press and reset upon brake/cancel button
       self.override_slc |= carstate.gasPressed
-      self.override_slc &= not carstate.brakePressed
-      self.override_slc &= not sm['carControl'].cruiseControl.cancel
-      self.override_slc &= v_ego > desired_speed_limit
+      self.override_slc &= sm['controlsState'].enabled
+      self.override_slc &= v_ego > desired_speed_limit > 0
 
-      SpeedLimitController.update_current_max_velocity(carstate.cruiseState.speedLimit, v_cruise)
-      if 0 < desired_speed_limit < v_cruise and not self.override_slc:
-        v_cruise = round(desired_speed_limit)
+      # Set the max speed to the manual set speed
+      if carstate.gasPressed:
+        self.overridden_speed = np.clip(v_ego, desired_speed_limit, v_cruise)
+      self.overridden_speed *= not carstate.brakePressed
+
+      # Use the speed limit if its not being overridden
+      if not self.override_slc:
+        SpeedLimitController.update_current_max_velocity(carstate.cruiseState.speedLimit, v_cruise)
+        if 0 < desired_speed_limit < v_cruise:
+          v_cruise = round(desired_speed_limit)
+      else:
+        v_cruise = self.overridden_speed
 
     # Pfeiferj's Vision Turn Controller
     if self.vision_turn_controller and prev_accel_constraint and v_ego > 5:

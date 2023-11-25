@@ -69,7 +69,7 @@ class ConditionalExperimentalMode:
   # Check conditions for the appropriate state of Experimental Mode
   def check_conditions(self, carstate, lead, lead_distance, modeldata, speed_difference, standstill, v_ego, v_lead, v_offset):
     # Prevent Experimental Mode from deactivating at a standstill/slowing down so we don't accidentally run red lights/stop signs
-    if (standstill or v_ego < self.previous_ego_speed and self.status_value == 11) and self.experimental_mode:
+    if (standstill or v_ego < self.previous_ego_speed and self.status_value == 11 and v_lead > 1) and self.experimental_mode:
       return True
 
     # Navigation check

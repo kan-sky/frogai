@@ -5,17 +5,21 @@ import urllib.request
 from openpilot.common.realtime import Ratekeeper
 import stat
 
-VERSION = 'v1.5.2'
+VERSION = 'v1.5.6'
 URL = f"https://github.com/pfeiferj/openpilot-mapd/releases/download/{VERSION}/mapd"
-MAPD_PATH = '/data/openpilot/mapd'
-VERSION_PATH = '/data/openpilot/mapd_version'
+MAPD_PATH = '/data/media/0/osm/mapd'
+VERSION_PATH = '/data/media/0/osm/mapd_version'
 
 def download():
+  mapd_dir = os.path.dirname(MAPD_PATH)
+  if not os.path.exists(mapd_dir):
+    os.makedirs(mapd_dir)
   with urllib.request.urlopen(URL) as f:
     with open(MAPD_PATH, 'wb') as output:
       output.write(f.read())
       os.fsync(output)
-      os.chmod(MAPD_PATH, stat.S_IEXEC)
+      current_permissions = stat.S_IMODE(os.lstat(MAPD_PATH).st_mode) # <-- preserve permissions
+      os.chmod(MAPD_PATH, current_permissions | stat.S_IEXEC) # <-- preserve permissions
     with open(VERSION_PATH, 'w') as output:
       output.write(VERSION)
       os.fsync(output)
@@ -37,7 +41,7 @@ def mapd_thread(sm=None, pm=None):
           download()
           continue
 
-      process = subprocess.Popen('/data/openpilot/mapd', stdout=subprocess.PIPE)
+      process = subprocess.Popen(MAPD_PATH, stdout=subprocess.PIPE)
       process.wait()
     except Exception as e:
       print(e)

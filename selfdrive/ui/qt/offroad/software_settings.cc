@@ -9,6 +9,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QLabel>
+#include <QProcess>
 
 #include "common/params.h"
 #include "common/util.h"
@@ -156,6 +157,16 @@ SoftwarePanel::SoftwarePanel(QWidget* parent) : ListWidget(parent) {
     }
   });
   addItem(uninstallBtn);
+
+  // error log button
+  errorLogBtn = new ButtonControl(tr("Error Log").arg(getBrand()), tr("VIEW"));
+  connect(errorLogBtn, &ButtonControl::clicked, [this]() {
+    const QString errorFilePath = "/data/community/crashes/error.txt";
+    if (!QFile::exists(errorFilePath)) return;
+    QString txt = QString::fromStdString(util::read_file(errorFilePath.toStdString()));
+    RichTextDialog::alert(txt, this);
+  });
+  addItem(errorLogBtn);
 
   // offline maps button
   mapsBtn = new ButtonControl(tr("Offline Maps"), tr("SELECT"));

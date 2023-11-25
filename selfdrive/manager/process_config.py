@@ -67,7 +67,7 @@ procs = [
   DaemonProcess("manage_athenad", "selfdrive.athena.manage_athenad", "AthenadPid"),
 
   NativeProcess("camerad", "system/camerad", ["./camerad"], driverview),
-  NativeProcess("logcatd", "system/logcatd", ["./logcatd"], enable_logging),
+  NativeProcess("logcatd", "system/logcatd", ["./logcatd"], (enable_logging and only_onroad)),
   NativeProcess("proclogd", "system/proclogd", ["./proclogd"], only_onroad),
   PythonProcess("logmessaged", "system.logmessaged", enable_logging),
   PythonProcess("micd", "system.micd", iscar),
@@ -76,12 +76,12 @@ procs = [
   PythonProcess("dmonitoringmodeld", "selfdrive.modeld.dmonitoringmodeld", enable_dm, enabled=(not PC or WEBCAM)),
   NativeProcess("encoderd", "system/loggerd", ["./encoderd"], only_onroad),
   NativeProcess("stream_encoderd", "system/loggerd", ["./encoderd", "--stream"], notcar),
-  NativeProcess("loggerd", "system/loggerd", ["./loggerd"], enable_logging),
+  NativeProcess("loggerd", "system/loggerd", ["./loggerd"], (enable_logging and logging)),
   NativeProcess("modeld", "selfdrive/modeld", ["./modeld"], only_onroad),
   NativeProcess("mapsd", "selfdrive/navd", ["./mapsd"], only_onroad),
   PythonProcess("navmodeld", "selfdrive.modeld.navmodeld", only_onroad),
   NativeProcess("sensord", "system/sensord", ["./sensord"], only_onroad, enabled=not PC),
-  NativeProcess("ui", "selfdrive/ui", ["./ui"], always_run, watchdog_max_dt=(5 if not PC else None)),
+  NativeProcess("ui", "selfdrive/ui", ["./ui"], always_run, watchdog_max_dt=(5 if not PC else None), always_watchdog=only_offroad),
   NativeProcess("soundd", "selfdrive/ui/soundd", ["./soundd"], only_onroad),
   NativeProcess("locationd", "selfdrive/locationd", ["./locationd"], only_onroad),
   NativeProcess("boardd", "selfdrive/boardd", ["./boardd"], always_run, enabled=False),
@@ -110,7 +110,7 @@ procs = [
 
   # FrogPilot procs
   PythonProcess("mapd", "selfdrive.mapd", osm),
-  PythonProcess("otisserv", "selfdrive.navd.otisserv", not_prime),
+  PythonProcess("otisserv", "selfdrive.navd.otisserv", always_run),
 ]
 
 managed_processes = {p.name: p for p in procs}

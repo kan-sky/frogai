@@ -45,7 +45,7 @@ FrogPilot is my custom "Frog Themed" fork of openpilot that has been tailored to
 
 FrogPilot was last updated on:
 
-**November 10th, 2023**
+**November 15th, 2023**
 
 Features
 ------
