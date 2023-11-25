@@ -209,6 +209,10 @@ class Controls:
     self.second = 0.0
     self.autoNaviSpeedCtrlStart = float(Params().get("AutoNaviSpeedCtrlStart"))
     self.autoNaviSpeedCtrlEnd = float(Params().get("AutoNaviSpeedCtrlEnd"))
+
+    # use fixed steerRatio
+    self.fixedSteerRatio = float(int(Params().get("fixedSteerRatio", encoding="utf8"))) / 10.
+
     # TODO: no longer necessary, aside from process replay
     self.sm['liveParameters'].valid = True
     self.can_log_mono_time = 0
@@ -375,7 +379,8 @@ class Controls:
     if self.second > 1.0:
       self.autoNaviSpeedCtrlStart = float(Params().get("AutoNaviSpeedCtrlStart"))
       self.autoNaviSpeedCtrlEnd = float(Params().get("AutoNaviSpeedCtrlEnd"))
-
+      # use fixed steerRatio
+      self.fixedSteerRatio = float(int(Params().get("fixedSteerRatio", encoding="utf8"))) / 10.
       self.second = 0.0
 
     # Handle HW and system malfunctions
@@ -646,7 +651,11 @@ class Controls:
     # Update VehicleModel
     lp = self.sm['liveParameters']
     x = max(lp.stiffnessFactor, 0.1)
-    sr = max(lp.steerRatio, 0.1)
+    # use fixed steerRatio
+    if self.fixedSteerRatio > 0.0:
+      sr = max(self.fixedSteerRatio, 0.1)
+    else:
+      sr = max(lp.steerRatio, 0.1)
     self.VM.update_params(x, sr)
 
     # Update Torque Params

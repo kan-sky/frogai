@@ -48,6 +48,7 @@ def manager_init() -> None:
     ("LongitudinalPersonality", str(log.LongitudinalPersonality.standard)),
     ("AutoNaviSpeedCtrlStart", "22"),
     ("AutoNaviSpeedCtrlEnd", "11"),
+    ("fixedSteerRatio", "142"),
   ]
   if not PC:
     default_params.append(("LastUpdateTime", datetime.datetime.utcnow().isoformat().encode('utf8')))
