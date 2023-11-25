@@ -450,20 +450,14 @@ AnnotatedCameraWidget::AnnotatedCameraWidget(VisionStreamType type, QWidget* par
   main_layout->setMargin(UI_BORDER_SIZE);
   main_layout->setSpacing(0);
 
-  // Neokii screen recorder
-  QHBoxLayout *top_right_layout = new QHBoxLayout();
-  top_right_layout->setSpacing(0);
-  recorder_btn = new ScreenRecorder(this);
-  top_right_layout->addWidget(recorder_btn);
-
   experimental_btn = new ExperimentalButton(this);
-  top_right_layout->addWidget(experimental_btn);
-
-  main_layout->addLayout(top_right_layout, 0);
-  main_layout->setAlignment(top_right_layout, Qt::AlignTop | Qt::AlignRight);
+  main_layout->addWidget(experimental_btn, 0, Qt::AlignTop | Qt::AlignRight);
 
   map_settings_btn = new MapSettingsButton(this);
   main_layout->addWidget(map_settings_btn, 0, Qt::AlignBottom | Qt::AlignRight);
+  map_settings_btn->setVisible(false);
+  QSpacerItem *spacer = new QSpacerItem(0, 25, QSizePolicy::Minimum, QSizePolicy::Fixed);
+  main_layout->addSpacerItem(spacer);
 
   dm_img = loadPixmap("../assets/img_driver_face.png", {img_size + 5, img_size + 5});
 
@@ -471,17 +465,23 @@ AnnotatedCameraWidget::AnnotatedCameraWidget(VisionStreamType type, QWidget* par
   ic_nda = loadPixmap("../assets/images/img_nda.png", {img_size, img_size});
   ic_hda = loadPixmap("../assets/images/img_hda.png", {img_size, img_size});
 
+  // screen recoder - neokii
+
+  record_timer = std::make_shared<QTimer>();
+	QObject::connect(record_timer.get(), &QTimer::timeout, [=]() {
+    if(recorder) {
+      recorder->update_screen();
+    }
+  });
+	record_timer->start(1000/UI_FREQ);
+
+	recorder = new ScreenRecoder(this);
+	main_layout->addWidget(recorder, 0, Qt::AlignBottom | Qt::AlignRight);
+  
+
   // FrogPilot buttons
   personality_btn = new PersonalityButton(this);
   main_layout->addWidget(personality_btn, 0, Qt::AlignBottom | Qt::AlignLeft);
-
-  QTimer *record_timer = new QTimer(this);
-  connect(record_timer, &QTimer::timeout, this, [this]() {
-    if (this->recorder_btn) {
-      this->recorder_btn->update_screen();
-    }
-  });
-  record_timer->start(1000 / UI_FREQ);
 
   // FrogPilot variable checks
   if (params.getBool("HideSpeed")) {
