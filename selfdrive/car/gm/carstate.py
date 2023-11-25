@@ -1,4 +1,5 @@
 import copy
+from time import time
 from cereal import car
 from openpilot.common.conversions import Conversions as CV
 from openpilot.common.numpy_fast import mean
@@ -29,6 +30,16 @@ class CarState(CarStateBase):
     self.buttons_counter = 0
 
     self.single_pedal_mode = False
+
+    # ajouatom
+    self.acc_fault = False
+    self.accFaultedCount = 0
+
+    self.autoHold = True # set based on autohold toggle in GM options
+    self.autoHoldActive = False
+    self.autoHoldActivated = False
+    self.lastAutoHoldTime = 0.0
+    self.sessionInitTime = time()
 
   def update(self, pt_cp, cam_cp, loopback_cp):
     ret = car.CarState.new_message()
@@ -85,6 +96,8 @@ class CarState(CarStateBase):
     if self.CP.transmissionType == TransmissionType.direct:
       ret.regenBraking = pt_cp.vl["EBCMRegenPaddle"]["RegenPaddle"] != 0
       self.single_pedal_mode = ret.gearShifter == GearShifter.low or pt_cp.vl["EVDriveMode"]["SinglePedalModeActive"] == 1
+      
+    ret.brakePressed |= ret.regenBraking
 
     if self.CP.enableGasInterceptor:
       ret.gas = (pt_cp.vl["GAS_SENSOR"]["INTERCEPTOR_GAS"] + pt_cp.vl["GAS_SENSOR"]["INTERCEPTOR_GAS2"]) / 2.
@@ -119,11 +132,16 @@ class CarState(CarStateBase):
     ret.parkingBrake = pt_cp.vl["BCMGeneralPlatformStatus"]["ParkBrakeSwActive"] == 1
     ret.cruiseState.available = pt_cp.vl["ECMEngineStatus"]["CruiseMainOn"] != 0
     ret.espDisabled = pt_cp.vl["ESPStatus"]["TractionControlOn"] != 1
-    ret.accFaulted = (pt_cp.vl["AcceleratorPedal2"]["CruiseState"] == AccState.FAULTED or
+    accFaulted = (pt_cp.vl["AcceleratorPedal2"]["CruiseState"] == AccState.FAULTED or \
                       pt_cp.vl["EBCMFrictionBrakeStatus"]["FrictionBrakeUnavailable"] == 1)
 
+    self.accFaultedCount = self.accFaultedCount + 1 if accFaulted else 0
+    ret.accFaulted = True if self.accFaultedCount > 10 else False
+    self.acc_fault = ret.accFaulted
     ret.cruiseState.enabled = pt_cp.vl["AcceleratorPedal2"]["CruiseState"] != AccState.OFF
     ret.cruiseState.standstill = pt_cp.vl["AcceleratorPedal2"]["CruiseState"] == AccState.STANDSTILL
+    ret.cruiseState.standstill = False
+
     if self.CP.networkLocation == NetworkLocation.fwdCamera and not self.CP.flags & GMFlags.NO_CAMERA.value:
       if self.CP.carFingerprint not in CC_ONLY_CAR:
         ret.cruiseState.speed = cam_cp.vl["ASCMActiveCruiseControlStatus"]["ACCSpeedSetpoint"] * CV.KPH_TO_MS
@@ -184,6 +202,8 @@ class CarState(CarStateBase):
           # Invert the value of "ExperimentalMode"
           put_bool_nonblocking("ExperimentalMode", not experimental_mode)
       self.lkas_previously_pressed = lkas_pressed
+
+    ret.autoHoldActivated = self.autoHoldActivated
 
     return ret
 

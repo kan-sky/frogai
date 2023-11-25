@@ -1031,6 +1031,13 @@ EVENTS: Dict[int, Dict[str, Union[Alert, AlertCallbackType]]] = {
       AlertStatus.normal, AlertSize.none,
       Priority.LOW, VisualAlert.none, AudibleAlert.speedDown, 2.),
   },
+  EventName.autoHoldActivated: {
+    ET.PERMANENT: Alert(
+    "AutoHolding | Gas to resume",
+    "",
+    AlertStatus.normal, AlertSize.small,
+    Priority.LOWER, VisualAlert.none, AudibleAlert.autoHold, 3.),
+  },
 }
 
 
