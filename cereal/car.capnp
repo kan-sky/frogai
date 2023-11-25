@@ -428,9 +428,7 @@ struct CarControl {
       promptRepeat @7;
       promptDistracted @8;
       autoHold @9;
-      speedDown @9;
-      reverseGear @10;
-      nnff @11;
+      speedDown @10;
     }
   }
 
