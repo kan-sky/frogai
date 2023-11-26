@@ -46,14 +46,22 @@ def manager_init() -> None:
     ("LanguageSetting", "main_en"),
     ("OpenpilotEnabledToggle", "1"),
     ("LongitudinalPersonality", str(log.LongitudinalPersonality.standard)),
-    ("LongitudinalTuningKpV", "100"),
+    # APM tuning
+    ("StopDistance", "550"),
+    # APM tuning(long)
+     ("LongitudinalTuningKpV", "100"),
     # ("LongitudinalTuningKiV", "0"),     
     ("LongitudinalTuningKf", "100"),     
     ("LongitudinalActuatorDelayUpperBound", "50"),     
-    ("LongitudinalActuatorDelayLowerBound", "50"), 
+    ("LongitudinalActuatorDelayLowerBound", "50"),
+    # APM tuning(lateral)
+    ("LateralTorqueCustom", "1"),       
+    ("LateralTorqueAccelFactor", "1440"),       
+    ("LateralTorqueFriction", "60"),
+    ("SteerRatioApply", "140"),
+    # NDA neokii 
     ("AutoNaviSpeedCtrlStart", "22"),
     ("AutoNaviSpeedCtrlEnd", "11"),
-    ("fixedSteerRatio", "142"),
   ]
   if not PC:
     default_params.append(("LastUpdateTime", datetime.datetime.utcnow().isoformat().encode('utf8')))

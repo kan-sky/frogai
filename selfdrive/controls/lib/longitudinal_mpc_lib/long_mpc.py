@@ -247,6 +247,8 @@ def gen_long_ocp():
 class LongitudinalMpc:
   def __init__(self, mode='acc'):
     self.mode = mode
+    self.stopDistance = STOP_DISTANCE
+    self.lo_timer = 0 
     self.solver = AcadosOcpSolverCython(MODEL_NAME, ACADOS_SOLVER_TYPE, N)
     self.reset()
     self.source = SOURCES[2]
@@ -358,6 +360,7 @@ class LongitudinalMpc:
 
   def update(self, radarstate, v_cruise, x, v, a, j, have_lead, aggressive_acceleration, increased_stopping_distance, smoother_braking, custom_personalities, aggressive_follow, standard_follow, relaxed_follow, personality=log.LongitudinalPersonality.standard):
     t_follow = get_T_FOLLOW(custom_personalities, aggressive_follow, standard_follow, relaxed_follow, personality)
+    self.update_params()
     v_ego = self.x0[1]
     self.status = radarstate.leadOne.status or radarstate.leadTwo.status
 
@@ -499,6 +502,14 @@ class LongitudinalMpc:
     # lin {self.time_linearization:.2e} qp_iter {qp_iter}, reset {reset}")
 
 
+  def update_params(self):
+    self.lo_timer += 1
+    if self.lo_timer > 200:
+      self.lo_timer = 0
+    elif self.lo_timer == 20:
+      pass
+    elif self.lo_timer == 40:
+      self.stopDistance = float(int(Params().get("StopDistance", encoding="utf8"))) / 100.
 if __name__ == "__main__":
   ocp = gen_long_ocp()
   AcadosOcpSolver.generate(ocp, json_file=JSON_FILE)

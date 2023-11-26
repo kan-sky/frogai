@@ -211,7 +211,9 @@ class Controls:
     self.autoNaviSpeedCtrlEnd = float(Params().get("AutoNaviSpeedCtrlEnd"))
 
     # use fixed steerRatio
-    self.fixedSteerRatio = float(int(Params().get("fixedSteerRatio", encoding="utf8"))) / 10.
+    self.SteerRatioApply = float(int(Params().get("SteerRatioApply", encoding="utf8"))) / 10.
+    # APM tuning
+    self.lateralTorqueCustom = Params().get_bool("LateralTorqueCustom")
 
     # TODO: no longer necessary, aside from process replay
     self.sm['liveParameters'].valid = True
@@ -380,7 +382,9 @@ class Controls:
       self.autoNaviSpeedCtrlStart = float(Params().get("AutoNaviSpeedCtrlStart"))
       self.autoNaviSpeedCtrlEnd = float(Params().get("AutoNaviSpeedCtrlEnd"))
       # use fixed steerRatio
-      self.fixedSteerRatio = float(int(Params().get("fixedSteerRatio", encoding="utf8"))) / 10.
+      self.SteerRatioApply = float(int(Params().get("SteerRatioApply", encoding="utf8"))) / 10.
+      # APM tuning
+      self.lateralTorqueCustom = Params().get_bool("LateralTorqueCustom")
       self.second = 0.0
 
     # Handle HW and system malfunctions
@@ -652,8 +656,8 @@ class Controls:
     lp = self.sm['liveParameters']
     x = max(lp.stiffnessFactor, 0.1)
     # use fixed steerRatio
-    if self.fixedSteerRatio > 0.0:
-      sr = max(self.fixedSteerRatio, 0.1)
+    if self.SteerRatioApply > 0.0:
+      sr = max(self.SteerRatioApply, 0.1)
     else:
       sr = max(lp.steerRatio, 0.1)
     self.VM.update_params(x, sr)
@@ -661,7 +665,7 @@ class Controls:
     # Update Torque Params
     if self.CP.lateralTuning.which() == 'torque':
       torque_params = self.sm['liveTorqueParameters']
-      if self.sm.all_checks(['liveTorqueParameters']) and torque_params.useParams:
+      if self.sm.all_checks(['liveTorqueParameters']) and torque_params.useParams and not self.lateralTorqueCustom:
         self.LaC.update_live_torque_params(torque_params.latAccelFactorFiltered, torque_params.latAccelOffsetFiltered,
                                            torque_params.frictionCoefficientFiltered)
 

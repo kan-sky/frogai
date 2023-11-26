@@ -10,6 +10,7 @@ from openpilot.selfdrive.controls.lib.latcontrol import LatControl
 from openpilot.selfdrive.controls.lib.pid import PIDController
 from openpilot.selfdrive.controls.lib.vehicle_model import ACCELERATION_DUE_TO_GRAVITY
 from openpilot.selfdrive.modeld.constants import ModelConstants
+from common.params import Params # APM tuning
 
 # At higher speeds (25+mph) we can assume:
 # Lateral acceleration achieved by a specific car correlates to
@@ -62,6 +63,11 @@ class LatControlTorque(LatControl):
     self.use_steering_angle = self.torque_params.useSteeringAngle
     self.steering_angle_deadzone_deg = self.torque_params.steeringAngleDeadzoneDeg
     self.lowspeed_factor_factor = 1.0 # in [0, 1] in 0.1 increments.
+    # APM Tuning
+    self.paramsCount = 0
+    self.lateralTorqueCustom = int(Params().get("LateralTorqueCustom", encoding="utf8"))
+    self.lateralTorqueAccelFactor = float(int(Params().get("LateralTorqueAccelFactor", encoding="utf8")))*0.001
+    self.lateralTorqueFriction = float(int(Params().get("LateralTorqueFriction", encoding="utf8")))*0.001
 
     # Twilsonco's Lateral Neural Network Feedforward
     self.use_nn = CI.has_lateral_torque_nn
@@ -116,13 +122,27 @@ class LatControlTorque(LatControl):
     self.torque_params.latAccelOffset = latAccelOffset
     self.torque_params.friction = friction
 
+  # APM tuning
+  def update_params(self):
+    self.paramsCount += 1
+    if self.paramsCount > 30:
+      self.paramsCount = 0
+    elif self.paramsCount == 10:
+      self.lateralTorqueCustom = int(Params().get("LateralTorqueCustom", encoding="utf8"))
+      self.lateralTorqueAccelFactor = float(int(Params().get("LateralTorqueAccelFactor", encoding="utf8")))*0.001
+      self.lateralTorqueFriction = float(int(Params().get("LateralTorqueFriction", encoding="utf8")))*0.001
+      if self.lateralTorqueCustom == 1:
+        self.torque_params.latAccelFactor = self.lateralTorqueAccelFactor
+        self.torque_params.friction = self.lateralTorqueFriction
   def update(self, active, CS, VM, params, last_actuators, steer_limited, desired_curvature, desired_curvature_rate, llk, lat_plan=None, model_data=None):
+    self.update_params() # APM tuning
     pid_log = log.ControlsState.LateralTorqueState.new_message()
     nn_log = None
 
     if not active:
       output_torque = 0.0
       pid_log.active = False
+      angle_steers_des = 0.
     else:
       if self.use_steering_angle:
         actual_curvature = -VM.calc_curvature(math.radians(CS.steeringAngleDeg - params.angleOffsetDeg), CS.vEgo, params.roll)
@@ -232,4 +252,4 @@ class LatControlTorque(LatControl):
         pid_log.nnLog = nn_log
 
     # TODO left is positive in this convention
-    return -output_torque, 0.0, pid_log
+    return -output_torque, angle_steers_des, pid_log

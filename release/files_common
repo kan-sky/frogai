@@ -79,6 +79,7 @@ system/micd.py
 system/swaglog.py
 system/version.py
 
+selfdrive/apilot.py
 selfdrive/athena/__init__.py
 selfdrive/athena/athenad.py
 selfdrive/athena/manage_athenad.py

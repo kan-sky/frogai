@@ -1,5 +1,6 @@
 #!/usr/bin/bash
 
+chmod 700 ./selfdrive/apilot.py
 if [ -z "$BASEDIR" ]; then
   BASEDIR="/data/openpilot"
 fi
