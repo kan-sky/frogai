@@ -1005,8 +1005,9 @@ class Controls:
         self.update_frogpilot_params()
 
   def update_frogpilot_params(self):
-    self.CI.update_frogpilot_params(self.params)
-    self.CS.update_frogpilot_params(self.params)
+    for obj in [self.CI, self.CS]:
+      if hasattr(obj, 'update_frogpilot_params'):
+        obj.update_frogpilot_params(self.params)
 
     self.average_desired_curvature = self.params.get_bool("AverageCurvature")
     self.conditional_experimental_mode = self.params.get_bool("ConditionalExperimental")

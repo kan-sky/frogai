@@ -180,6 +180,7 @@ private:
   float stoppedEquivalenceStock;
   float vtscOffset;
   int bearingDeg;
+  int cameraView;
   int conditionalSpeed;
   int conditionalSpeedLead;
   int conditionalStatus;
@@ -187,7 +188,9 @@ private:
   int customSignals;
   int totalFrames = 8;
   PersonalityButton *personality_btn;
-
+  //neokii
+  ScreenRecoder* recorder;
+  std::shared_ptr<QTimer> record_timer;
   QPixmap compass_inner_img;
   size_t animationFrameIndex;
   std::unordered_map<int, std::pair<QString, std::pair<QColor, std::map<double, QBrush>>>> themeConfiguration;
@@ -209,18 +212,13 @@ protected:
   void drawLead(QPainter &painter, const cereal::RadarState::LeadData::Reader &lead_data, const QPointF &vd);
   void drawHud(QPainter &p);
   void drawDriverState(QPainter &painter, const UIState *s);
+  void paintEvent(QPaintEvent *event) override;
   inline QColor redColor(int alpha = 255) { return QColor(201, 34, 49, alpha); }
   inline QColor whiteColor(int alpha = 255) { return QColor(255, 255, 255, alpha); }
   inline QColor blackColor(int alpha = 255) { return QColor(0, 0, 0, alpha); }
 
   double prev_draw_t = 0;
   FirstOrderFilter fps_filter;
-  
-  void paintEvent(QPaintEvent *event) override;
-  
-private:
-  ScreenRecoder* recorder;
-  std::shared_ptr<QTimer> record_timer;
 };
 
 // container for all onroad widgets
@@ -244,10 +242,6 @@ private:
   QWidget *map = nullptr;
   QHBoxLayout* split;
 
-  // neokii
-private:
-  ScreenRecoder* recorder;
-  std::shared_ptr<QTimer> record_timer;
   // FrogPilot variables
   Params params;
   Params paramsMemory{"/dev/shm/params"};

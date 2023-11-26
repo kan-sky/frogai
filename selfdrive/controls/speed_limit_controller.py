@@ -7,9 +7,9 @@ params_memory = Params("/dev/shm/params")
 
 class SpeedLimitController:
   car_speed_limit: float = 0  # m/s
+  lst_speed_limit: float = 0  # m/s
   map_speed_limit: float = 0  # m/s
   nav_speed_limit: float = 0  # m/s
-  prv_speed_limit: float = 0  # m/s
 
   def __init__(self) -> None:
     self.update_frogpilot_params()
@@ -73,6 +73,9 @@ class SpeedLimitController:
       params_memory.put_bool("SLCExperimentalMode", True)
       return 0
     elif self.use_previous_limit:
+      if self.lst_speed_limit != self.prv_speed_limit:
+        params.put_int("PreviousSpeedLimit", self.prv_speed_limit * 100)
+      self.lst_speed_limit = self.prv_speed_limit
       return self.prv_speed_limit
 
     return 0
@@ -106,5 +109,7 @@ class SpeedLimitController:
     slc_fallback = params.get_int("SLCFallback")
     self.use_experimental_mode = slc_fallback == 1
     self.use_previous_limit = slc_fallback == 2
+
+    self.prv_speed_limit = params.get_int("PreviousSpeedLimit") / 100
 
 SpeedLimitController = SpeedLimitController()

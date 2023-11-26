@@ -216,6 +216,7 @@ system/hardware/tici/agnos.json
 system/hardware/tici/amplifier.py
 system/hardware/tici/updater
 system/hardware/tici/iwlist.py
+system/hardware/tici/esim.nmconnection
 system/hardware/pc/__init__.py
 system/hardware/pc/hardware.h
 system/hardware/pc/hardware.py
@@ -295,6 +296,7 @@ selfdrive/test/helpers.py
 selfdrive/test/setup_device_ci.sh
 selfdrive/test/test_onroad.py
 selfdrive/test/test_time_to_onroad.py
+selfdrive/test/pytest-tici.ini
 
 selfdrive/ui/.gitignore
 selfdrive/ui/SConscript
@@ -450,7 +452,6 @@ scripts/stop_updater.sh
 
 rednose/.gitignore
 rednose/**
-laika/**
 
 body/.gitignore
 body/board/SConscript

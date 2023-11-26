@@ -108,6 +108,8 @@ def manager_init() -> None:
                        dirty=is_dirty(),
                        device=HARDWARE.get_device_type())
 
+  if os.path.isfile(os.path.join(sentry.CRASHES_DIR, 'error.txt')):
+    os.remove(os.path.join(sentry.CRASHES_DIR, 'error.txt'))
 
 def manager_prepare() -> None:
   for p in managed_processes.values():
@@ -197,6 +199,7 @@ def main() -> None:
   if os.path.exists("/data/openpilot/prebuilt"):
     os.remove("/data/openpilot/prebuilt")
 
+  # Set the desired model on boot
   subprocess.run(["python3", "/data/openpilot/selfdrive/modeld/model_switcher.py"])
 
   # Start UI early so prepare can happen in the background

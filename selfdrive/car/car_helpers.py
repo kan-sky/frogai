@@ -221,10 +221,10 @@ def crash_log(candidate):
   ], [
     "EVTable", "LowerVolt", "LockDoors", "SNGHack", "TSS2Tune"
   ], [
-    "CustomTheme", "CustomColors", "CustomIcons", "CustomSignals", "CustomSounds", "Compass", "CustomUI", "LaneLinesWidth", "RoadEdgesWidth", 
+    "CustomTheme", "CustomColors", "CustomIcons", "CustomSignals", "CustomSounds", "CameraView", "Compass", "CustomUI", "LaneLinesWidth", "RoadEdgesWidth", 
     "PathWidth", "PathEdgeWidth", "AccelerationPath", "AdjacentPath", "BlindSpotPath", "ShowFPS", "LeadInfo", "RoadNameUI", "UnlimitedLength", 
-    "DriverCamera", "GreenLightAlert", "RotatingWheel", "ScreenBrightness", "Sidebar", "SilentMode", "WheelIcon", "WideCameraOff", 
-    "HideSpeed", "NumericalTemp", "Fahrenheit", "ShowCPU", "ShowGPU", "ShowMemoryUsage", "ShowSLCOffset", "ShowStorageLeft", "ShowStorageUsed"
+    "DriverCamera", "GreenLightAlert", "RotatingWheel", "ScreenBrightness", "Sidebar", "SilentMode", "WheelIcon", "HideSpeed", "NumericalTemp", 
+    "Fahrenheit", "ShowCPU", "ShowGPU", "ShowMemoryUsage", "ShowSLCOffset", "ShowStorageLeft", "ShowStorageUsed"
   ]
 
   control_params, vehicle_params, visual_params = map(lambda keys: get_frogpilot_params(params, keys), [control_keys, vehicle_keys, visual_keys])

@@ -283,6 +283,7 @@ void ui_update_params(UIState *s) {
   static float conversion = scene.is_metric ? 0.06 : 0.1524;
 
   scene.always_on_lateral = params.getBool("AlwaysOnLateral");
+  scene.camera_view = params.getInt("CameraView");
   scene.compass = params.getBool("Compass");
 
   scene.conditional_experimental = params.getBool("ConditionalExperimental");
@@ -315,7 +316,6 @@ void ui_update_params(UIState *s) {
   scene.rotating_wheel = params.getBool("RotatingWheel");
   scene.screen_brightness = params.getInt("ScreenBrightness");
   scene.wheel_icon = params.getInt("WheelIcon");
-  scene.wide_camera_disabled = params.getBool("WideCameraOff");
 }
 
 void UIState::updateStatus() {
@@ -392,7 +392,6 @@ void UIState::update() {
   if (scene.conditional_experimental) {
     scene.conditional_status = paramsMemory.getInt("CEStatus");
   }
-  scene.map_open = paramsMemory.getBool("MapOpen");
 }
 
 void UIState::setPrimeType(PrimeType type) {

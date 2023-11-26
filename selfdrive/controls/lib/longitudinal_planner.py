@@ -105,6 +105,7 @@ class LongitudinalPlanner:
 
     self.green_light_count = 0
     self.overridden_speed = 0
+    self.slc_target = 0
     self.v_offset = 0
     self.v_target = MIN_TARGET_V
 
@@ -179,10 +180,11 @@ class LongitudinalPlanner:
     accel_limits_turns[1] = max(accel_limits_turns[1], self.a_desired - 0.05)
 
     carcontrol, carstate, modeldata, radarstate = sm['carControl'], sm['carState'], sm['modelV2'], sm['radarState']
+    enabled = sm['controlsState'].enabled
     have_lead = ConditionalExperimentalMode.detect_lead(radarstate)
 
     # Conditional Experimental Mode
-    if self.conditional_experimental_mode and sm['controlsState'].enabled:
+    if self.conditional_experimental_mode and enabled:
       ConditionalExperimentalMode.update(carstate, modeldata, radarstate, v_ego, v_lead, self.v_offset)
 
     # Green light alert
@@ -207,28 +209,29 @@ class LongitudinalPlanner:
 
     # Pfeiferj's Speed Limit Controller
     if self.speed_limit_controller:
+      SpeedLimitController.update_current_max_velocity(carstate.cruiseState.speedLimit, v_cruise)
       desired_speed_limit = SpeedLimitController.desired_speed_limit
 
       # Override SLC upon gas pedal press and reset upon brake/cancel button
       self.override_slc |= carstate.gasPressed
-      self.override_slc &= sm['controlsState'].enabled
+      self.override_slc &= enabled
       self.override_slc &= v_ego > desired_speed_limit > 0
 
       # Set the max speed to the manual set speed
       if carstate.gasPressed:
         self.overridden_speed = np.clip(v_ego, desired_speed_limit, v_cruise)
-      self.overridden_speed *= not carstate.brakePressed
+      self.overridden_speed *= enabled
 
       # Use the speed limit if its not being overridden
       if not self.override_slc:
-        SpeedLimitController.update_current_max_velocity(carstate.cruiseState.speedLimit, v_cruise)
-        if 0 < desired_speed_limit < v_cruise:
-          v_cruise = round(desired_speed_limit)
+        if v_cruise > desired_speed_limit > 0:
+          self.slc_target = round(desired_speed_limit)
+          v_cruise = self.slc_target
       else:
-        v_cruise = self.overridden_speed
+        self.slc_target = self.overridden_speed
 
     # Pfeiferj's Vision Turn Controller
-    if self.vision_turn_controller and prev_accel_constraint and v_ego > 5:
+    if self.vision_turn_controller and prev_accel_constraint:
       # Set the curve sensitivity
       orientation_rate = np.array(np.abs(modeldata.orientationRate.z)) * self.curve_sensitivity
       velocity = np.array(modeldata.velocity.x)
@@ -249,8 +252,8 @@ class LongitudinalPlanner:
       # Configure the offset value for the UI
       self.v_offset = max(0, int(v_cruise - self.v_target))
 
-      # Set v_cruise to the desired speed
-      v_cruise = min(v_cruise, self.v_target)
+      if v_cruise > self.v_target:
+        v_cruise = max(5, self.v_target)
     else:
       self.v_offset = 0
 
@@ -276,8 +279,8 @@ class LongitudinalPlanner:
 
     # Interpolate 0.05 seconds and save as starting point for next iteration
     a_prev = self.a_desired
-    self.a_desired = float(interp(self.CP.radarTimeStep, ModelConstants.T_IDXS[:CONTROL_N], self.a_desired_trajectory))
-    self.v_desired_filter.x = self.v_desired_filter.x + self.CP.radarTimeStep * (self.a_desired + a_prev) / 2.0
+    self.a_desired = float(interp(DT_MDL, ModelConstants.T_IDXS[:CONTROL_N], self.a_desired_trajectory))
+    self.v_desired_filter.x = self.v_desired_filter.x + DT_MDL * (self.a_desired + a_prev) / 2.0
 
   def publish(self, sm, pm):
     plan_send = messaging.new_message('longitudinalPlan')

@@ -1,4 +1,4 @@
-![openpilot on the comma 3X](https://i.imgur.com/jJi1R88.jpg)
+![openpilot on the comma 3X](https://i.imgur.com/6l2qbf5.png)
 
 Table of Contents
 =======================
@@ -45,7 +45,7 @@ FrogPilot is my custom "Frog Themed" fork of openpilot that has been tailored to
 
 FrogPilot was last updated on:
 
-**November 15th, 2023**
+**November 25th, 2023**
 
 Features
 ------

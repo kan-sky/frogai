@@ -128,7 +128,7 @@ class DesireHelper:
 
         # Conduct a nudgeless lane change if all the conditions are true
         self.lane_change_wait_timer += DT_MDL
-        if self.nudgeless and lane_available and not self.lane_change_completed and not self.turn_completed and self.lane_change_wait_timer >= self.lane_change_delay:
+        if self.nudgeless and lane_available and not self.lane_change_completed and self.lane_change_wait_timer >= self.lane_change_delay:
           torque_applied = True
           self.lane_change_wait_timer = 0
 
@@ -174,8 +174,10 @@ class DesireHelper:
 
     if self.turn_direction != TurnDirection.none:
       self.desire = TURN_DESIRES[self.turn_direction]
-    else:
+    elif not self.turn_completed:
       self.desire = DESIRES[self.lane_change_direction][self.lane_change_state]
+    else:
+      self.desire = log.LateralPlan.Desire.none
 
     # Send keep pulse once per second during LaneChangeStart.preLaneChange
     if self.lane_change_state in (LaneChangeState.off, LaneChangeState.laneChangeStarting):

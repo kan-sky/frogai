@@ -106,6 +106,7 @@ enum PrimeType {
   LITE = 2,
   BLUE = 3,
   MAGENTA_NEW = 4,
+  PURPLE = 5,
 };
 
 const QColor bg_colors [] = {
@@ -183,8 +184,8 @@ typedef struct UIScene {
   bool turn_signal_left;
   bool turn_signal_right;
   bool unlimited_road_ui_length;
-  bool wide_camera_disabled;
   int bearing_deg;
+  int camera_view;
   int conditional_speed;
   int conditional_speed_lead;
   int conditional_status;

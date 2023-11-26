@@ -72,11 +72,3 @@ public:
   static QString getSelection(const QString &prompt_text, const QStringList &l, const QString &current, QWidget *parent);
   QString selection;
 };
-
-class RichTextDialog : public DialogBase {
-  Q_OBJECT
-
-public:
-  explicit RichTextDialog(const QString &prompt_text, const QString &btn_text, QWidget *parent);
-  static bool alert(const QString &prompt_text, QWidget *parent);
-};

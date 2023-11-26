@@ -423,7 +423,7 @@ void ExperimentalButton::paintEvent(QPaintEvent *event) {
 
 // MapSettingsButton
 MapSettingsButton::MapSettingsButton(QWidget *parent) : QPushButton(parent), scene(uiState()->scene) {
-  setFixedSize(btn_size + 25, btn_size + 25);
+  setFixedSize(btn_size + 25, btn_size);
   settings_img = loadPixmap("../assets/navigation/icon_directions_outlined.svg", {img_size, img_size});
 
   // hidden by default, made visible if map is created (has prime or mapbox token)
@@ -438,7 +438,7 @@ void MapSettingsButton::updateState(const UIState &s) {
 void MapSettingsButton::paintEvent(QPaintEvent *event) {
   const bool moveRight = scene.compass && scene.personalities_via_screen;
   QPainter p(this);
-  drawIcon(p, QPoint(btn_size / 2 + (moveRight ? 25 : 0), btn_size / 2 + 25), settings_img, QColor(0, 0, 0, 166), isDown() ? 0.6 : 1.0);
+  drawIcon(p, QPoint(btn_size / 2 + (moveRight ? 25 : 0), btn_size / 2), settings_img, QColor(0, 0, 0, 166), isDown() ? 0.6 : 1.0);
 }
 
 
@@ -572,6 +572,10 @@ void AnnotatedCameraWidget::updateState(const UIState &s) {
     map_settings_btn->updateState(s);
     map_settings_btn->setVisible(!hideBottomIcons);
     main_layout->setAlignment(map_settings_btn, (rightHandDM || compass ? Qt::AlignLeft : Qt::AlignRight) | Qt::AlignBottom);
+    if (!onroadAdjustableProfiles) {
+      QSpacerItem *spacer = new QSpacerItem(20, 25, QSizePolicy::Minimum, QSizePolicy::Fixed);
+      main_layout->addSpacerItem(spacer);
+    }
   }
 
   main_layout->setAlignment(personality_btn, (rightHandDM ? Qt::AlignRight : Qt::AlignLeft) | Qt::AlignBottom);
@@ -587,6 +591,7 @@ void AnnotatedCameraWidget::updateState(const UIState &s) {
   bearingDeg = scene.bearing_deg;
   blindSpotLeft = scene.blind_spot_left;
   blindSpotRight = scene.blind_spot_right;
+  cameraView = scene.camera_view;
   compass = scene.compass;
   conditionalExperimental = scene.conditional_experimental;
   conditionalSpeed = scene.conditional_speed;
@@ -1159,19 +1164,20 @@ void AnnotatedCameraWidget::paintEvent(QPaintEvent *event) {
 
     // Wide or narrow cam dependent on speed
     bool has_wide_cam = available_streams.count(VISION_STREAM_WIDE_ROAD);
-    if (has_wide_cam && !s->scene.wide_camera_disabled) {
+    if (has_wide_cam) {
       float v_ego = sm["carState"].getCarState().getVEgo();
       if ((v_ego < 10) || available_streams.size() == 1) {
         wide_cam_requested = true;
       } else if (v_ego > 15) {
         wide_cam_requested = false;
       }
-      wide_cam_requested = wide_cam_requested && sm["controlsState"].getControlsState().getExperimentalMode();
+      wide_cam_requested = wide_cam_requested && sm["controlsState"].getControlsState().getExperimentalMode() || cameraView == 2;
       // for replay of old routes, never go to widecam
       wide_cam_requested = wide_cam_requested && s->scene.calibration_wide_valid;
     }
     paramsMemory.putBoolNonBlocking("WideCamera", wide_cam_requested);
-    CameraWidget::setStreamType(showDriverCamera ? VISION_STREAM_DRIVER : wide_cam_requested ? VISION_STREAM_WIDE_ROAD : VISION_STREAM_ROAD);
+    CameraWidget::setStreamType(showDriverCamera || cameraView == 3 ? VISION_STREAM_DRIVER : 
+                                wide_cam_requested && cameraView != 1 ? VISION_STREAM_WIDE_ROAD : VISION_STREAM_ROAD);
 
     s->scene.wide_cam = CameraWidget::getStreamType() == VISION_STREAM_WIDE_ROAD;
     if (s->scene.calibration_valid) {
@@ -1475,8 +1481,10 @@ void PersonalityButton::checkUpdate() {
 void PersonalityButton::handleClick() {
   static const int mapping[] = {2, 0, 1};
   personalityProfile = mapping[personalityProfile];
+
   params.putInt("LongitudinalPersonality", personalityProfile);
   paramsMemory.putBool("PersonalityChangedViaUI", true);
+
   updateState();
 }
 
@@ -1532,7 +1540,7 @@ void AnnotatedCameraWidget::drawStatusBar(QPainter &p) {
   const QString wheelSuffix = ". Double press the \"LKAS\" button to revert";
 
   // Conditional Experimental Mode statuses
-  static const QMap<int, QString> conditionalStatusMap = {
+  QMap<int, QString> conditionalStatusMap = {
     {0, "Conditional Experimental Mode ready"},
     {1, "Conditional Experimental overridden"},
     {2, "Experimental Mode manually activated"},
