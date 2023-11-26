@@ -154,36 +154,6 @@ public:
   explicit FrogPilotVisualsPanel(QWidget *parent = nullptr);
 };
 
-class FrogPilotNavigationPanel : public FrogPilotPanel {
-  Q_OBJECT
-
-public:
-  explicit FrogPilotNavigationPanel(QWidget *parent = nullptr);
-
-protected:
-  void showEvent(QShowEvent *event) override;
-
-private:
-  bool prevDeviceOnline = false;
-  bool prevMapboxPublicKeySet = false;
-  bool prevMapboxSecretKeySet = false;
-  bool setupCompleted;
-  QLabel *instructionsStep;
-  QLabel *mapboxSettingsLabel;
-  QTimer *updateTimer;
-  WifiManager* wifiManager;
-
-  static constexpr const char* imagePath = "../assets/images/";
-  static constexpr const char* ipFormat = "Manage your mapbox settings at %1:8082";
-
-  void retrieveAndUpdateStatus();
-  void updateIpAddressLabel();
-  void updateUI(bool deviceOnline, bool mapboxPublicKeySet, bool mapboxSecretKeySet);
-
-private slots:
-  void updateIpAddress(const QString& newIpAddress);
-};
-
 #define ParamController(className, paramName, labelText, descText, iconPath, getValueStrFunc, newValueFunc) \
 class className : public ParamValueControl { \
   Q_OBJECT \
@@ -195,7 +165,7 @@ public: \
     if (std::string(#className) == "AdjustablePersonalities") { \
       label.setFixedWidth(300); \
     } \
-    if (std::string(#className) == "DeviceShutdown" || std::string(#className) == "StoppingDistance" || std::string(#className) == "WheelIcon") { \
+    if (std::string(#className) == "CameraView" || std::string(#className) == "DeviceShutdown" || std::string(#className) == "StoppingDistance" || std::string(#className) == "WheelIcon") { \
       label.setFixedWidth(225); \
     } \
     if (std::string(#className) == "CESpeed" || std::string(#className) == "CESpeedLead" || std::string(#className) == "Offset1" || std::string(#className) == "Offset2" || std::string(#className) == "Offset3" || std::string(#className) == "Offset4") { \
@@ -242,6 +212,12 @@ ParamController(AggressiveJerk, "AggressiveJerk", "Jerk Value", "Set the jerk va
 ParamController(AggressiveFollow, "AggressiveFollow", "Time", "Set the following distance for the 'Aggressive Personality'.\n\nValue represents the time (in seconds) to follow the lead vehicle.\n\nStock has a value of 1.25.", "../assets/aggressive.png",
   return QString::number(params.getInt("AggressiveFollow") / 10.0) + " sec";,
   return std::clamp(v, 10, 50);
+)
+
+ParamController(CameraView, "CameraView", "Camera View (Cosmetic Only)", "Set your preferred camera view for the onroad UI. This toggle is purely cosmetic and will not affect openpilot's use of the other cameras.", "../assets/offroad/icon_camera.png",
+  const int camera = params.getInt("CameraView");
+  return camera == 0 ? "Auto" : camera == 1 ? "Standard" : camera == 2 ? "Wide" : "Driver";,
+  return v >= 0 ? v % 4 : 3;
 )
 
 ParamController(CESpeed, "CESpeed", "Below", "Switch to 'Experimental Mode' below this speed when there is no lead vehicle.", "../assets/offroad/icon_blank.png",
@@ -302,10 +278,10 @@ ParamController(LaneLinesWidth, "LaneLinesWidth", "Lanes", "Customize the lane l
   return std::clamp(v, 0, isMetric ? 60 : 24);
 )
 
-ParamController(Model, "Model", "Model Selector (Requires Reboot)", "Select your preferred openpilot model.\n\nFV = Farmville(Default)\nNLP = New Lemon Pie", "../assets/offroad/icon_calibration.png",
+ParamController(Model, "Model", "Model Selector (Requires Reboot)", "Select your preferred openpilot model.\n\nFV = Farmville(Default)\nNLP = New Lemon Pie\nBD = Blue Diamond", "../assets/offroad/icon_calibration.png",
   const int model = params.getInt("Model");
-  return model == 0 ? "FV" : "NLP";,
-  return v >= 0 ? v % 2 : 1;
+  return model == 0 ? "FV" : model == 1 ? "NLP" : "BD";,
+  return v >= 0 ? v % 3 : 2;
 )
 
 ParamController(Offset1, "Offset1", "  0-34", "Set the speed limit offset when the speed limit is between 0 and 34 mph.", "../assets/icon_blank.png",

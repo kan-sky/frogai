@@ -22,7 +22,7 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(QWidget *parent) : FrogPilotPanel
     {"FireTheBabysitter", "Fire the Babysitter", "Disable some of openpilot's 'Babysitter Protocols'.", "../assets/offroad/icon_babysitter.png"},
     {"LateralTune", "Lateral Tuning", "Change the way openpilot steers.", "../assets/offroad/icon_lateral_tune.png"},
     {"LongitudinalTune", "Longitudinal Tuning", "Change the way openpilot accelerates and brakes.", "../assets/offroad/icon_longitudinal_tune.png"},
-    {"Model", "Model Selector (Requires Reboot)", "Select your preferred openpilot model.\n\nFV = Farmville(Default)\nNLP = New Lemon Pie", "../assets/offroad/icon_calibration.png"},
+    {"Model", "Model Selector (Requires Reboot)", "Select your preferred openpilot model.\n\nFV = Farmville(Default)\nNLP = New Lemon Pie\nBD = Blue Diamond", "../assets/offroad/icon_calibration.png"},
     {"NudgelessLaneChange", "Nudgeless Lane Change", "Switch lanes without having to nudge the steering wheel.", "../assets/offroad/icon_lane.png"},
     {"PauseLateralOnSignal", "Pause Lateral On Turn Signal", "Pauses lateral control when a turn signal is active.", "../assets/offroad/icon_pause_lane.png"},
     {"SpeedLimitController", "Speed Limit Controller", "Use Open Street Maps, Navigate On openpilot, and your car's dashboard (Toyota only) to set the vehicle's speed to the current speed limit.", "../assets/offroad/icon_speed_limit.png"},
@@ -226,6 +226,7 @@ FrogPilotVisualsPanel::FrogPilotVisualsPanel(QWidget *parent) : FrogPilotPanel(p
 
   static const std::vector<std::tuple<QString, QString, QString, QString>> toggles = {
     {"CustomTheme", "Custom Theme", "Enable the ability to use custom themes.", "../assets/frog.png"},
+    {"CameraView", "Camera View (Cosmetic Only)", "Set your preferred camera view for the onroad UI. This toggle is purely cosmetic and will not affect openpilot's use of the other cameras.", "../assets/offroad/icon_camera.png"},
     {"Compass", "Compass", "Add a compass to the onroad UI that indicates your current driving direction.", "../assets/offroad/icon_compass.png"},
     {"CustomUI", "Custom UI", "Customize the UI to your liking.", "../assets/offroad/icon_road.png"},
     {"DriverCamera", "Driver Camera On Reverse", "Displays the driver camera when in reverse.", "../assets/img_driver_face_static.png"},
@@ -234,12 +235,14 @@ FrogPilotVisualsPanel::FrogPilotVisualsPanel(QWidget *parent) : FrogPilotPanel(p
     {"ScreenBrightness", "Screen Brightness", "Choose a custom screen brightness level or use the default 'Auto' brightness setting.", "../assets/offroad/icon_light.png"},
     {"SilentMode", "Silent Mode", "Disables all openpilot sounds for a completely silent experience.", "../assets/offroad/icon_mute.png"},
     {"WheelIcon", "Steering Wheel Icon", "Replace the stock openpilot steering wheel icon with a custom icon.\n\nWant to submit your own steering wheel? Message me on Discord\n@FrogsGoMoo!", "../assets/offroad/icon_openpilot.png"},
-    {"WideCameraOff", "Wide Camera Disabled (Cosmetic Only)", "Disable the wide camera view. This toggle is purely cosmetic and will not affect openpilot's use of the wide camera.", "../assets/offroad/icon_camera.png"}
   };
 
   for (const auto &[key, label, desc, icon] : toggles) {
     ParamControl *control = createParamControl(key, label, desc, icon, this);
-    if (key == "CustomUI") {
+    if (key == "CameraView") {
+      mainLayout->addWidget(new CameraView());
+      mainLayout->addWidget(horizontalLine());
+    } else if (key == "CustomUI") {
       createSubControl(key, label, desc, icon, {
         createDualParamControl(new LaneLinesWidth(), new RoadEdgesWidth()),
         createDualParamControl(new PathWidth(), new PathEdgeWidth())
@@ -274,63 +277,6 @@ FrogPilotVisualsPanel::FrogPilotVisualsPanel(QWidget *parent) : FrogPilotPanel(p
     }
   }
   setInitialToggleStates();
-}
-
-FrogPilotNavigationPanel::FrogPilotNavigationPanel(QWidget *parent) : FrogPilotPanel(parent), instructionsStep(new QLabel(this)), updateTimer(new QTimer(this)), wifiManager(new WifiManager(this)) {
-  auto mainLayout = new QVBoxLayout(this);
-
-  mainLayout->addWidget(instructionsStep, 0, Qt::AlignCenter);
-
-  mapboxSettingsLabel = new QLabel("", this);
-  mainLayout->addWidget(mapboxSettingsLabel, 0, Qt::AlignBottom | Qt::AlignCenter);
-
-  connect(updateTimer, &QTimer::timeout, this, &FrogPilotNavigationPanel::retrieveAndUpdateStatus);
-  updateTimer->start(100);
-
-  setupCompleted = !params.get("MapboxPublicKey").empty() && !params.get("MapboxSecretKey").empty();
-
-  retrieveAndUpdateStatus();
-}
-
-void FrogPilotNavigationPanel::retrieveAndUpdateStatus() {
-  const bool deviceOnline = int((*uiState()->sm)["deviceState"].getDeviceState().getNetworkStrength()) != 0;
-  const bool mapboxPublicKeySet = !params.get("MapboxPublicKey").empty();
-  const bool mapboxSecretKeySet = !params.get("MapboxSecretKey").empty();
-
-  if (deviceOnline) {
-    updateIpAddressLabel();
-  }
-  if (deviceOnline != prevDeviceOnline || mapboxPublicKeySet != prevMapboxPublicKeySet || mapboxSecretKeySet != prevMapboxSecretKeySet) {
-    updateUI(deviceOnline, mapboxPublicKeySet, mapboxSecretKeySet);
-    prevDeviceOnline = deviceOnline;
-    prevMapboxPublicKeySet = mapboxPublicKeySet;
-    prevMapboxSecretKeySet = mapboxSecretKeySet;
-  }
-}
-
-void FrogPilotNavigationPanel::updateIpAddress(const QString& newIpAddress) {
-  mapboxSettingsLabel->setText(QString(ipFormat).arg(newIpAddress));
-}
-
-void FrogPilotNavigationPanel::updateIpAddressLabel() {
-  mapboxSettingsLabel->setText(QString(ipFormat).arg(wifiManager->getIp4Address()));
-}
-
-void FrogPilotNavigationPanel::showEvent(QShowEvent *event) {
-  retrieveAndUpdateStatus();
-  QWidget::showEvent(event);
-}
-
-void FrogPilotNavigationPanel::updateUI(const bool deviceOnline, const bool mapboxPublicKeySet, const bool mapboxSecretKeySet) {
-  static QString imageName = "offline.png";
-  if (deviceOnline) {
-    if (!setupCompleted) {
-      imageName = !mapboxPublicKeySet ? "no_keys_set.png" : (!mapboxSecretKeySet ? "public_key_set.png" : "both_keys_set.png");
-    } else if (setupCompleted) {
-      imageName = "setup_completed.png";
-    }
-  }
-  instructionsStep->setPixmap(QPixmap(imagePath + imageName));
 }
 
 ParamControl *FrogPilotPanel::createParamControl(const QString &key, const QString &label, const QString &desc, const QString &icon, QWidget *parent) {
@@ -520,6 +466,7 @@ void FrogPilotPanel::setParams() {
     {"AlwaysOnLateralMain", FrogsGoMoo ? "1" : "0"},
     {"AverageCurvature", FrogsGoMoo ? "1" : "0"},
     {"BlindSpotPath", "1"},
+    {"CameraView", FrogsGoMoo ? "1" : "0"},
     {"CECurves", "1"},
     {"CECurvesLead", "0"},
     {"CENavigation", "1"},
@@ -577,6 +524,8 @@ void FrogPilotPanel::setParams() {
     {"SLCPriority", "1"},
     {"SNGHack", "0"},
     {"ScreenBrightness", "101"},
+    {"ShowCPU", FrogsGoMoo ? "1" : "0"},
+    {"ShowMemoryUsage", FrogsGoMoo ? "1" : "0"},
     {"ShowFPS", FrogsGoMoo ? "1" : "0"},
     {"Sidebar", "1"},
     {"SilentMode", "0"},
@@ -590,8 +539,7 @@ void FrogPilotPanel::setParams() {
     {"TurnDesires", "1"},
     {"UnlimitedLength", "1"},
     {"VisionTurnControl", "1"},
-    {"WheelIcon", "1"},
-    {"WideCameraOff", "1"}
+    {"WheelIcon", "1"}
   };
 
   bool rebootRequired = false;
