@@ -91,7 +91,8 @@ class CarInterface(CarInterfaceBase):
     ret.longitudinalTuning.deadzoneBP = [0.]
     ret.longitudinalTuning.deadzoneV = [0.15]
 
-    ret.longitudinalTuning.kpBP = [5., 35.]
+    #ret.longitudinalTuning.kpBP = [5., 35.]
+    ret.longitudinalTuning.kpBP = [0.]
     ret.longitudinalTuning.kiBP = [0, 20 * CV.KPH_TO_MS, 30 * CV.KPH_TO_MS, 50 * CV.KPH_TO_MS, 70 * CV.KPH_TO_MS, 120 * CV.KPH_TO_MS]
 
     if candidate in CAMERA_ACC_CAR:
@@ -104,7 +105,8 @@ class CarInterface(CarInterfaceBase):
       ret.minSteerSpeed = 10 * CV.KPH_TO_MS
 
       # Tuning for experimental long
-      ret.longitudinalTuning.kpV = [2.0, 1.5]
+      #ret.longitudinalTuning.kpV = [2.0, 1.5]
+      ret.longitudinalTuning.kpV = [1.75]
       ret.longitudinalTuning.kiV = [0.72]
       ret.stoppingDecelRate = 2.0  # reach brake quickly after enabling
       ret.vEgoStopping = 0.25
@@ -125,7 +127,8 @@ class CarInterface(CarInterfaceBase):
       ret.minSteerSpeed = 6.8 * CV.MPH_TO_MS
 
       # Tuning
-      ret.longitudinalTuning.kpV = [2.4, 1.5]
+      #ret.longitudinalTuning.kpV = [2.4, 1.5]
+      ret.longitudinalTuning.kpV = [1.75]
       ret.longitudinalTuning.kiV = [0.35, 0.53, 0.62, 0.7, 0.5, 0.36]
       if ret.enableGasInterceptor:
         # Need to set ASCM long limits when using pedal interceptor, instead of camera ACC long limits
@@ -159,11 +162,13 @@ class CarInterface(CarInterfaceBase):
 
       # softer long tune for ev table
       if useEVTables: 
-        ret.longitudinalTuning.kpBP = [5., 15., 35.]
-        ret.longitudinalTuning.kpV = [0.65, .9, 0.8]
+        #ret.longitudinalTuning.kpBP = [5., 15., 35.]
+        #ret.longitudinalTuning.kpV = [0.65, .9, 0.8]
+        ret.longitudinalTuning.kpBP = [0.]
+        ret.longitudinalTuning.kpV = [0.8]
         ret.longitudinalTuning.kiBP = [0, 20 * CV.KPH_TO_MS, 30 * CV.KPH_TO_MS, 50 * CV.KPH_TO_MS, 70 * CV.KPH_TO_MS, 120 * CV.KPH_TO_MS]
         ret.longitudinalTuning.kiV = [0.35, 0.53, 0.62, 0.7, 0.5, 0.36]
-        ret.stoppingDecelRate = 0.02  # brake_travel/s while trying to stop
+        ret.stoppingDecelRate = 0.2  # brake_travel/s while trying to stop
         ret.stopAccel = -0.5
         ret.startAccel = 0.8
         ret.vEgoStopping = 0.1

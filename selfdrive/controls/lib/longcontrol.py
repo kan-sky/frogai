@@ -4,6 +4,7 @@ from openpilot.common.realtime import DT_CTRL
 from openpilot.selfdrive.controls.lib.drive_helpers import CONTROL_N, apply_deadzone
 from openpilot.selfdrive.controls.lib.pid import PIDController
 from openpilot.selfdrive.modeld.constants import ModelConstants
+from openpilot.common.params import Params
 
 LongCtrlState = car.CarControl.Actuators.LongControlState
 
@@ -59,6 +60,12 @@ class LongControl:
                              k_f=CP.longitudinalTuning.kf, rate=1 / DT_CTRL)
     self.v_pid = 0.0
     self.last_output_accel = 0.0
+    self.readParamCount = 0
+    self.longitudinalTuningKpV = 1.0
+    #self.longitudinalTuningKiV = 0.0
+    self.longitudinalTuningKf = 1.0
+    self.longitudinalActuatorDelayLowerBound = float(int(Params().get("LongitudinalActuatorDelayLowerBound", encoding="utf8"))) * 0.01
+    self.longitudinalActuatorDelayUpperBound = float(int(Params().get("LongitudinalActuatorDelayUpperBound", encoding="utf8"))) * 0.01
 
   def reset(self, v_pid):
     """Reset PID controller and change setpoint"""
@@ -66,6 +73,25 @@ class LongControl:
     self.v_pid = v_pid
 
   def update(self, active, CS, long_plan, accel_limits, t_since_plan):
+    self.readParamCount += 1
+    if self.readParamCount >= 100:
+      self.readParamCount = 0
+    elif self.readParamCount == 10:
+      self.longitudinalTuningKpV = float(int(Params().get("LongitudinalTuningKpV", encoding="utf8"))) * 0.01
+      #self.longitudinalTuningKiV = float(int(Params().get("LongitudinalTuningKiV", encoding="utf8"))) * 0.001
+      self.longitudinalTuningKf = float(int(Params().get("LongitudinalTuningKf", encoding="utf8"))) * 0.01
+
+      ## longcontrolTuning이 한개일때만 적용
+      if len(self.CP.longitudinalTuning.kpBP) == 1 and len(self.CP.longitudinalTuning.kiBP)==1:
+        self.CP.longitudinalTuning.kpV = [self.longitudinalTuningKpV]
+        #self.CP.longitudinalTuning.kiV = [self.longitudinalTuningKiV]
+        self.pid._k_p = (self.CP.longitudinalTuning.kpBP, self.CP.longitudinalTuning.kpV)
+        self.pid._k_i = (self.CP.longitudinalTuning.kiBP, self.CP.longitudinalTuning.kiV)
+        self.pid.k_f = self.longitudinalTuningKf
+        #self.pid._k_i = ([0, 2.0, 200], [self.longitudinalTuningKiV, 0.0, 0.0]) # 정지때만.... i를 적용해보자... 시험..
+    elif self.readParamCount == 30:
+      self.longitudinalActuatorDelayLowerBound = float(int(Params().get("LongitudinalActuatorDelayLowerBound", encoding="utf8"))) * 0.01
+      self.longitudinalActuatorDelayUpperBound = float(int(Params().get("LongitudinalActuatorDelayUpperBound", encoding="utf8"))) * 0.01
     """Update longitudinal control. This updates the state machine and runs a PID loop"""
     # Interp control trajectory
     speeds = long_plan.speeds
@@ -74,21 +100,29 @@ class LongControl:
       v_target_now = interp(t_since_plan, ModelConstants.T_IDXS[:CONTROL_N], speeds)
       a_target_now = interp(t_since_plan, ModelConstants.T_IDXS[:CONTROL_N], long_plan.accels)
 
-      v_target_lower = interp(self.CP.longitudinalActuatorDelayLowerBound + t_since_plan, ModelConstants.T_IDXS[:CONTROL_N], speeds)
-      a_target_lower = 2 * (v_target_lower - v_target_now) / self.CP.longitudinalActuatorDelayLowerBound - a_target_now
+      #v_target_lower = interp(self.CP.longitudinalActuatorDelayLowerBound + t_since_plan, ModelConstants.T_IDXS[:CONTROL_N], speeds)
+      #a_target_lower = 2 * (v_target_lower - v_target_now) / self.CP.longitudinalActuatorDelayLowerBound - a_target_now
 
-      v_target_upper = interp(self.CP.longitudinalActuatorDelayUpperBound + t_since_plan, ModelConstants.T_IDXS[:CONTROL_N], speeds)
-      a_target_upper = 2 * (v_target_upper - v_target_now) / self.CP.longitudinalActuatorDelayUpperBound - a_target_now
+      #v_target_upper = interp(self.CP.longitudinalActuatorDelayUpperBound + t_since_plan, ModelConstants.T_IDXS[:CONTROL_N], speeds)      
+      #a_target_upper = 2 * (v_target_upper - v_target_now) / self.CP.longitudinalActuatorDelayUpperBound - a_target_now
+
+      v_target_lower = interp(self.longitudinalActuatorDelayLowerBound + t_since_plan, ModelConstants.T_IDXS[:CONTROL_N], speeds)
+      a_target_lower = 2 * (v_target_lower - v_target_now) / self.longitudinalActuatorDelayLowerBound - a_target_now
+
+      v_target_upper = interp(self.longitudinalActuatorDelayUpperBound + t_since_plan, ModelConstants.T_IDXS[:CONTROL_N], speeds)
+      a_target_upper = 2 * (v_target_upper - v_target_now) / self.longitudinalActuatorDelayUpperBound - a_target_now
 
       v_target = min(v_target_lower, v_target_upper)
       a_target = min(a_target_lower, a_target_upper)
 
-      v_target_1sec = interp(self.CP.longitudinalActuatorDelayUpperBound + t_since_plan + 1.0, ModelConstants.T_IDXS[:CONTROL_N], speeds)
+      #v_target_1sec = interp(self.CP.longitudinalActuatorDelayUpperBound + t_since_plan + 1.0, ModelConstants.T_IDXS[:CONTROL_N], speeds)
+      v_target_1sec = interp(self.longitudinalActuatorDelayLowerBound + t_since_plan + 1.0, ModelConstants.T_IDXS[:CONTROL_N], speeds)
     else:
       v_target = 0.0
       v_target_now = 0.0
       v_target_1sec = 0.0
       a_target = 0.0
+      a_target_lower = a_target_upper = 0.0
 
     self.pid.neg_limit = accel_limits[0]
     self.pid.pos_limit = accel_limits[1]

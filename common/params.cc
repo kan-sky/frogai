@@ -212,6 +212,12 @@ std::unordered_map<std::string, uint32_t> keys = {
     {"AutoNaviSpeedCtrlStart", PERSISTENT},
     {"AutoNaviSpeedCtrlEnd", PERSISTENT},
     {"fixedSteerRatio", PERSISTENT},
+    {"LongitudinalTuningKpV", PERSISTENT},
+    // {"LongitudinalTuningKiV", PERSISTENT},
+    {"LongitudinalTuningKf", PERSISTENT},
+    {"LongitudinalActuatorDelayLowerBound", PERSISTENT},
+    {"LongitudinalActuatorDelayUpperBound", PERSISTENT},
+
     // FrogPilot parameters
     {"AccelerationPath", PERSISTENT},
     {"AccelerationProfile", PERSISTENT},
