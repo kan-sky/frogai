@@ -142,7 +142,6 @@ class LatControlTorque(LatControl):
     if not active:
       output_torque = 0.0
       pid_log.active = False
-      angle_steers_des = 0.
     else:
       if self.use_steering_angle:
         actual_curvature = -VM.calc_curvature(math.radians(CS.steeringAngleDeg - params.angleOffsetDeg), CS.vEgo, params.roll)
@@ -252,4 +251,4 @@ class LatControlTorque(LatControl):
         pid_log.nnLog = nn_log
 
     # TODO left is positive in this convention
-    return -output_torque, angle_steers_des, pid_log
+    return -output_torque, 0.0, pid_log
