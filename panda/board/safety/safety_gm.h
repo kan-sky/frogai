@@ -2,7 +2,7 @@ const SteeringLimits GM_STEERING_LIMITS = {
   .max_steer = 300,
   .max_rate_up = 20,
   .max_rate_down = 32,
-  .driver_torque_allowance = 50,
+  .driver_torque_allowance = 60,
   .driver_torque_factor = 4,
   .max_rt_delta = 128,
   .max_rt_interval = 250000,
@@ -79,7 +79,6 @@ bool gm_has_acc = true;
 bool gm_force_ascm = false;
 bool gm_pcm_cruise = false;
 bool gm_skip_relay_check = false;
-bool brake_pressed_x = false;
 
 static int gm_rx_hook(CANPacket_t *to_push) {
 
@@ -103,7 +102,7 @@ static int gm_rx_hook(CANPacket_t *to_push) {
     }
 
     // ACC steering wheel buttons (GM_CAM is tied to the PCM)
-    if ((addr == 0x1E1) && (!gm_pcm_cruise || gas_interceptor_detected || gm_cc_long) && (gm_hw == GM_CAM)) {
+    if ((addr == 0x1E1) && (!gm_pcm_cruise || gas_interceptor_detected || gm_cc_long)) {
       int button = (GET_BYTE(to_push, 5) & 0x70U) >> 4;
 
       // enter controls on falling edge of set or rising edge of resume (avoids fault)
@@ -124,7 +123,7 @@ static int gm_rx_hook(CANPacket_t *to_push) {
     // Reference for brake pressed signals:
     // https://github.com/commaai/openpilot/blob/master/selfdrive/car/gm/carstate.py
     if ((addr == 0xBE) && (gm_hw == GM_ASCM)) {
-      brake_pressed_x = GET_BYTE(to_push, 1) >= 8U;
+      brake_pressed = GET_BYTE(to_push, 1) >= 8U;
     }
 
     if (addr == 0xC9) {
@@ -133,7 +132,7 @@ static int gm_rx_hook(CANPacket_t *to_push) {
     }
 
     if ((addr == 0xC9) && (gm_hw == GM_CAM)) {
-      brake_pressed_x = GET_BIT(to_push, 40U) != 0U;
+      brake_pressed = GET_BIT(to_push, 40U) != 0U;
     }
 
     if (addr == 0x1C4) {
@@ -160,8 +159,7 @@ static int gm_rx_hook(CANPacket_t *to_push) {
     }
 
     if (addr == 0xBD) {
-      //regen_braking = (GET_BYTE(to_push, 0) >> 4) != 0U;
-      controls_allowed = 1;
+      regen_braking = (GET_BYTE(to_push, 0) >> 4) != 0U;
     }
 
     // Pedal Interceptor
@@ -171,7 +169,6 @@ static int gm_rx_hook(CANPacket_t *to_push) {
       //int gas_interceptor = GM_GET_INTERCEPTOR(to_push);
       //gas_pressed = gas_interceptor > GM_GAS_INTERCEPTOR_THRESHOLD;
       //gas_interceptor_prev = gas_interceptor;
-
     }
 
     bool stock_ecu_detected = (addr == 0x180);  // ASCMLKASteeringCmd
@@ -261,12 +258,12 @@ static int gm_tx_hook(CANPacket_t *to_send) {
           tx = 0;
       }
   }
-  else if ((addr == 0x1E1) && (gm_pcm_cruise || gm_cc_long || (gm_hw == GM_CAM))) {
+  else if ((addr == 0x1E1) && (gm_pcm_cruise || gm_cc_long)) {
     int button = (GET_BYTE(to_send, 5) >> 4) & 0x7U;
 
     bool allowed_btn = (button == GM_BTN_CANCEL) && cruise_engaged_prev;
     // For standard CC, allow spamming of SET / RESUME
-    if (gm_cc_long || (gm_hw == GM_CAM)) {
+    if (gm_cc_long) {
       allowed_btn |= cruise_engaged_prev && (button == GM_BTN_SET || button == GM_BTN_RESUME || button == GM_BTN_UNPRESS);
     }
 
