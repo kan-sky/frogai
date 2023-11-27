@@ -142,7 +142,8 @@ static int gm_rx_hook(CANPacket_t *to_push) {
       }
 
       // enter controls on rising edge of ACC, exit controls when ACC off
-      if (gm_pcm_cruise || (gm_pcm_cruise && gm_has_acc)) {
+      //if (gm_pcm_cruise && !gas_interceptor_detected && gm_has_acc) {
+      	if (gm_pcm_cruise || (gm_pcm_cruise && !gas_interceptor_detected && gm_has_acc)) {
         bool cruise_engaged = (GET_BYTE(to_push, 1) >> 5) != 0U;
         pcm_cruise_check(cruise_engaged);
       }
@@ -170,6 +171,7 @@ static int gm_rx_hook(CANPacket_t *to_push) {
       //int gas_interceptor = GM_GET_INTERCEPTOR(to_push);
       //gas_pressed = gas_interceptor > GM_GAS_INTERCEPTOR_THRESHOLD;
       //gas_interceptor_prev = gas_interceptor;
+
     }
 
     bool stock_ecu_detected = (addr == 0x180);  // ASCMLKASteeringCmd
