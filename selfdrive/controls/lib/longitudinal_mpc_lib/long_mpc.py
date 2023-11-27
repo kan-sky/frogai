@@ -9,6 +9,7 @@ from openpilot.system.swaglog import cloudlog
 from openpilot.selfdrive.modeld.constants import index_function
 from openpilot.selfdrive.car.interfaces import ACCEL_MIN
 from openpilot.selfdrive.controls.radard import _LEAD_ACCEL_TAU
+from common.params import Params
 
 if __name__ == '__main__':  # generating code
   from openpilot.third_party.acados.acados_template import AcadosModel, AcadosOcp, AcadosOcpSolver
@@ -501,7 +502,6 @@ class LongitudinalMpc:
     # print(f"long_mpc timings: total internal {self.solve_time:.2e}, external: {(time.monotonic() - t0):.2e} qp {self.time_qp_solution:.2e}, \
     # lin {self.time_linearization:.2e} qp_iter {qp_iter}, reset {reset}")
 
-
   def update_params(self):
     self.lo_timer += 1
     if self.lo_timer > 200:
@@ -510,6 +510,7 @@ class LongitudinalMpc:
       pass
     elif self.lo_timer == 40:
       self.stopDistance = float(int(Params().get("StopDistance", encoding="utf8"))) / 100.
+
 if __name__ == "__main__":
   ocp = gen_long_ocp()
   AcadosOcpSolver.generate(ocp, json_file=JSON_FILE)
