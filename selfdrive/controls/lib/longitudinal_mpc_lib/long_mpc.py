@@ -9,7 +9,8 @@ from openpilot.system.swaglog import cloudlog
 from openpilot.selfdrive.modeld.constants import index_function
 from openpilot.selfdrive.car.interfaces import ACCEL_MIN
 from openpilot.selfdrive.controls.radard import _LEAD_ACCEL_TAU
-from common.params import Params
+from openpilot.common.params import Params
+
 
 if __name__ == '__main__':  # generating code
   from openpilot.third_party.acados.acados_template import AcadosModel, AcadosOcp, AcadosOcpSolver
@@ -37,10 +38,10 @@ X_EGO_COST = 0.
 V_EGO_COST = 0.
 A_EGO_COST = 0.
 J_EGO_COST = 5.0
-A_CHANGE_COST = 130 # 200. 적으면 선행차에 대한 반응이 강해짐
+A_CHANGE_COST = 110 # 200. 적으면 선행차에 대한 반응이 강해짐
 DANGER_ZONE_COST = 100.
 CRASH_DISTANCE = .25
-LEAD_DANGER_FACTOR = 0.9 # 0.75
+LEAD_DANGER_FACTOR = 0.85 # 0.75
 LIMIT_COST = 1e6
 ACADOS_SOLVER_TYPE = 'SQP_RTI'
 
@@ -55,7 +56,7 @@ T_IDXS = np.array(T_IDXS_LST)
 FCW_IDXS = T_IDXS < 5.0
 T_DIFFS = np.diff(T_IDXS, prepend=[0.])
 COMFORT_BRAKE = 2.5
-STOP_DISTANCE = 5.0
+STOP_DISTANCE = float(int(Params().get("StopDistance", encoding="utf8"))) / 100. if Params().get("StopDistance", encoding="utf8") is not None else 6.0
 
 def get_jerk_factor(custom_personalities=False, aggressive_jerk=0.5, standard_jerk=1.0, relaxed_jerk=1.0, personality=log.LongitudinalPersonality.standard):
   if custom_personalities:
@@ -248,12 +249,12 @@ def gen_long_ocp():
 class LongitudinalMpc:
   def __init__(self, mode='acc'):
     self.mode = mode
-    self.stopDistance = STOP_DISTANCE
-    self.lo_timer = 0 
     self.solver = AcadosOcpSolverCython(MODEL_NAME, ACADOS_SOLVER_TYPE, N)
     self.reset()
     self.source = SOURCES[2]
 
+    self.lo_timer = 0
+    self.stopDistance = STOP_DISTANCE 
   def reset(self):
     # self.solver = AcadosOcpSolverCython(MODEL_NAME, ACADOS_SOLVER_TYPE, N)
     self.solver.reset()
@@ -283,6 +284,7 @@ class LongitudinalMpc:
     self.time_integrator = 0.0
     self.x0 = np.zeros(X_DIM)
     self.set_weights()
+    self.stopDistance = STOP_DISTANCE
 
   def set_cost_weights(self, cost_weights, constraint_cost_weights):
     W = np.asfortranarray(np.diag(cost_weights))
@@ -361,7 +363,14 @@ class LongitudinalMpc:
 
   def update(self, radarstate, v_cruise, x, v, a, j, have_lead, aggressive_acceleration, increased_stopping_distance, smoother_braking, custom_personalities, aggressive_follow, standard_follow, relaxed_follow, personality=log.LongitudinalPersonality.standard):
     t_follow = get_T_FOLLOW(custom_personalities, aggressive_follow, standard_follow, relaxed_follow, personality)
-    self.update_params()
+
+    # live Tune
+    self.lo_timer += 1
+    if self.lo_timer > 200:
+      self.lo_timer = 0
+    elif self.lo_timer == 20:
+      self.stopDistance = float(int(Params().get("StopDistance", encoding="utf8"))) / 100.
+
     v_ego = self.x0[1]
     self.status = radarstate.leadOne.status or radarstate.leadTwo.status
 
@@ -502,14 +511,6 @@ class LongitudinalMpc:
     # print(f"long_mpc timings: total internal {self.solve_time:.2e}, external: {(time.monotonic() - t0):.2e} qp {self.time_qp_solution:.2e}, \
     # lin {self.time_linearization:.2e} qp_iter {qp_iter}, reset {reset}")
 
-  def update_params(self):
-    self.lo_timer += 1
-    if self.lo_timer > 200:
-      self.lo_timer = 0
-    elif self.lo_timer == 20:
-      pass
-    elif self.lo_timer == 40:
-      self.stopDistance = float(int(Params().get("StopDistance", encoding="utf8"))) / 100.
 
 if __name__ == "__main__":
   ocp = gen_long_ocp()
