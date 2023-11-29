@@ -1671,12 +1671,12 @@ void AnnotatedCameraWidget::drawRoadLimitSpeed(QPainter &p) {
       int w = 120;
       int h = 54;
       int x = (width() + (UI_BORDER_SIZE*2))/2 - w/2 - UI_BORDER_SIZE;
-      int y = 65 - UI_BORDER_SIZE;
+      int y = 70 - UI_BORDER_SIZE;
       p.drawPixmap(x, y, w, h, activeNDA == 1 ? ic_nda : ic_hda);
   }
 
-  const int x_start = 40;
-  const int y_start = 40;
+  const int x_start = 35;
+  const int y_start = 240;
 
   int board_width = 210;
   int board_height = 384;
