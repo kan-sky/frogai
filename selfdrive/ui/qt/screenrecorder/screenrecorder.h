@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QPushButton>
+#include <QSoundEffect>
 
 #include "omx_encoder.h"
 #include "blocking_queue.h"
@@ -35,6 +36,8 @@ private:
   QWidget *rootWidget;
   bool recording = false;
   int frame = 0;
+  QSoundEffect soundStart;
+  QSoundEffect soundStop;
   int recording_width, recording_height;
   int screen_width = 2160, screen_height = 1080;
   long long started = 0;
@@ -47,7 +50,7 @@ private:
   void encoding_thread_func();
   void initializeEncoder();
   void openEncoder(const char *filename);
-  void start();
-  void stop();
+  void start(bool sound);
+  void stop(bool sound);
 #endif //WSL2
 };

@@ -28,10 +28,16 @@ ScreenRecorder::ScreenRecorder(QWidget *parent)
 void ScreenRecorder::initializeEncoder() {
   std::string path = "/data/media/0/videos";
   encoder = std::make_unique<OmxEncoder>(path.c_str(), recording_width, recording_height, 60, 2 * 1024 * 1024, false, false);
+
+  soundStart.setSource(QUrl::fromLocalFile("../assets/sounds/start_record.wav"));
+  soundStop.setSource(QUrl::fromLocalFile("../assets/sounds/stop_record.wav"));
+
+  soundStart.setVolume(0.5f);
+  soundStop.setVolume(0.5f);
 }
 
 ScreenRecorder::~ScreenRecorder() {
-  stop();
+  stop(false);
 }
 
 void ScreenRecorder::buttonReleased() {
@@ -72,13 +78,13 @@ void ScreenRecorder::closeEncoder() {
 
 void ScreenRecorder::toggle() {
   if (!recording) {
-    start();
+    start(true);
   } else {
-    stop();
+    stop(true);
   }
 }
 
-void ScreenRecorder::start() {
+void ScreenRecorder::start(bool sound) {
   if (recording) return;
 
   char filename[64];
@@ -100,6 +106,9 @@ void ScreenRecorder::start() {
 
   update();
   started = milliseconds();
+
+  if(sound)
+      soundStart.play();
 }
 
 void ScreenRecorder::encoding_thread_func() {
@@ -119,7 +128,7 @@ void ScreenRecorder::encoding_thread_func() {
   }
 }
 
-void ScreenRecorder::stop() {
+void ScreenRecorder::stop(bool sound) {
   if (!recording) return;
 
   recording = false;
@@ -128,21 +137,24 @@ void ScreenRecorder::stop() {
   image_queue.clear();
   if (encoding_thread.joinable()) {
     encoding_thread.join();
+
+  if(sound)
+      soundStop.play();
   }
 }
 
 void ScreenRecorder::update_screen() {
   if (!uiState()->scene.started) {
     if (recording) {
-      stop();
+      stop(true);
     }
     return;
   }
   if (!recording) return;
 
   if (milliseconds() - started > 1000 * 60 * 3) {
-    stop();
-    start();
+    stop(false);
+    start(false);
     return;
   }
 
