@@ -180,8 +180,12 @@ class Tici(HardwareBase):
     return self.bus.get_object(NM, wwan_path)
 
   def get_sim_info(self):
-    modem = self.get_modem()
-    sim_path = modem.Get(MM_MODEM, 'Sim', dbus_interface=DBUS_PROPS, timeout=TIMEOUT)
+    try:
+      modem = self.get_modem()
+      sim_path = modem.Get(MM_MODEM, 'Sim', dbus_interface=DBUS_PROPS, timeout=TIMEOUT)
+    except Exception:
+      print("get_sim_info: Exception")
+      sim_path = "/"
 
     if sim_path == "/":
       return {
