@@ -2,6 +2,7 @@ import json
 import os
 
 import select
+import subprocess
 import threading
 import time
 import socket
@@ -265,6 +266,7 @@ def main():
         dat.naviData.sectionLeftTime = server.get_limit_val("section_left_time", 0)
         dat.naviData.sectionAdjustSpeed = server.get_limit_val("section_adjust_speed", False)
         dat.naviData.currentRoadName = server.get_limit_val("current_road_name", "")
+        dat.naviData.isNda2 = server.get_limit_val("is_nda2", False)
 
         naviData.send(dat.to_bytes())
         server.send_sdp(sock)
@@ -408,6 +410,7 @@ class SpeedLimiter:
           speed_diff = 0
           if section_adjust_speed is not None and section_adjust_speed:
             speed_diff = (section_limit_speed - section_avg_speed) / 2.
+            speed_diff *= interp(section_left_dist, [500, 1000], [0., 1.])
 
           return section_limit_speed * CAMERA_SPEED_FACTOR + speed_diff, section_limit_speed, section_left_dist, first_started, log
 

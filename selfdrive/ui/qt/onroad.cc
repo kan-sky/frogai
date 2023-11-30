@@ -453,7 +453,8 @@ AnnotatedCameraWidget::AnnotatedCameraWidget(VisionStreamType type, QWidget* par
   // NDA neokii
   ic_nda = QPixmap("../assets/images/img_nda.png");
   ic_hda = QPixmap("../assets/images/img_hda.png");
-
+  ic_nda2 = QPixmap("../assets/images/img_nda2.png");
+  ic_hda2 = QPixmap("../assets/images/img_hda2.png");
   // FrogPilot widgets
   QHBoxLayout *top_right_layout = new QHBoxLayout();
 
@@ -1653,6 +1654,7 @@ void AnnotatedCameraWidget::drawRoadLimitSpeed(QPainter &p) {
   int camLimitSpeedLeftDist = navi_data.getCamLimitSpeedLeftDist();
   int sectionLimitSpeed = navi_data.getSectionLimitSpeed();
   int sectionLeftDist = navi_data.getSectionLeftDist();
+  int isNda2 = navi_data.getIsNda2();
 
   int limit_speed = 0;
   int left_dist = 0;
@@ -1668,11 +1670,20 @@ void AnnotatedCameraWidget::drawRoadLimitSpeed(QPainter &p) {
 
   if(activeNDA > 0) {
       p.setOpacity(1.f);
-      int w = 120;
-      int h = 54;
-      int x = (width() + (UI_BORDER_SIZE*2))/2 - w/2 - UI_BORDER_SIZE;
-      int y = 70 - UI_BORDER_SIZE;
-      p.drawPixmap(x, y, w, h, activeNDA == 1 ? ic_nda : ic_hda);
+      if(isNda2) {
+        int w = 155;
+        int h = 54;
+        int x = (width() + (UI_BORDER_SIZE*2))/2 - w/2 - UI_BORDER_SIZE;
+        int y = 70 - UI_BORDER_SIZE;
+        p.drawPixmap(x, y, w, h, activeNDA == 1 ? ic_nda2 : ic_hda2);
+      }
+      else {
+        int w = 120;
+        int h = 54;
+        int x = (width() + (UI_BORDER_SIZE*2))/2 - w/2 - UI_BORDER_SIZE;
+        int y = 70 - UI_BORDER_SIZE;
+        p.drawPixmap(x, y, w, h, activeNDA == 1 ? ic_nda : ic_hda);
+      }
   }
 
   const int x_start = 35;

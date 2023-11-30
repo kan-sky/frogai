@@ -16,6 +16,8 @@
 const int btn_size = 192;
 const int img_size = (btn_size / 4) * 3;
 
+#include <QTimer>
+
 // FrogPilot global variables
 static bool reverseCruise;
 static bool showSLCOffset;
@@ -220,6 +222,8 @@ protected:
   // NDA neokii
   QPixmap ic_nda;
   QPixmap ic_hda;
+  QPixmap ic_nda2;
+  QPixmap ic_hda2;
   void drawRoadLimitSpeed(QPainter &p);
 
   void paintGL() override;
