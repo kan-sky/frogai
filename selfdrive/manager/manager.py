@@ -60,8 +60,8 @@ def manager_init() -> None:
     ("LateralTorqueFriction", "60"),
     ("SteerRatioApply", "140"),
     # NDA neokii 
-    ("AutoNaviSpeedCtrlStart", "22"),
-    ("AutoNaviSpeedCtrlEnd", "11"),
+    ("AutoNaviSpeedCtrlStart", "25"),
+    ("AutoNaviSpeedCtrlEnd", "15"),
   ]
   if not PC:
     default_params.append(("LastUpdateTime", datetime.datetime.utcnow().isoformat().encode('utf8')))
