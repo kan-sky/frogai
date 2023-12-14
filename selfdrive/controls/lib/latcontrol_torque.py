@@ -134,7 +134,7 @@ class LatControlTorque(LatControl):
       if self.lateralTorqueCustom == 1:
         self.torque_params.latAccelFactor = self.lateralTorqueAccelFactor
         self.torque_params.friction = self.lateralTorqueFriction
-  def update(self, active, CS, VM, params, last_actuators, steer_limited, desired_curvature, desired_curvature_rate, llk, lat_plan=None, model_data=None):
+  def update(self, active, CS, VM, params, steer_limited, desired_curvature, desired_curvature_rate, llk, lat_plan=None, model_data=None):
     self.update_params() # APM tuning
     pid_log = log.ControlsState.LateralTorqueState.new_message()
     nn_log = None
