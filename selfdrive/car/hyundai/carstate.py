@@ -166,6 +166,37 @@ class CarState(CarStateBase):
     if self.prev_main_buttons == 0 and self.main_buttons[-1] != 0:
       self.main_enabled = not self.main_enabled
 
+    # Driving personalities function
+    if self.personalities_via_wheel and ret.cruiseState.available:
+      # Sync with the onroad UI button
+      if self.param_memory.get_bool("PersonalityChangedViaUI"):
+        self.personality_profile = self.param.get_int("LongitudinalPersonality")
+        self.param_memory.put_bool("PersonalityChangedViaUI", False)
+
+      # Change personality upon steering wheel button press
+      if self.cruise_buttons[-1] == Buttons.GAP_DIST and self.prev_cruise_buttons == 0:
+        self.param_memory.put_bool("PersonalityChangedViaWheel", True)
+        self.personality_profile = (self.previous_personality_profile + 2) % 3
+
+      if self.personality_profile != self.previous_personality_profile and self.personality_profile >= 0:
+        self.param.put_int("LongitudinalPersonality", self.personality_profile)
+        self.previous_personality_profile = self.personality_profile
+
+    # Toggle Experimental Mode from steering wheel function
+    if self.experimental_mode_via_press and ret.cruiseState.available:
+      lkas_pressed = cp.vl["BCM_PO_11"]["LFA_Pressed"]
+      if lkas_pressed and not self.lkas_previously_pressed:
+        if self.conditional_experimental_mode:
+          # Set "CEStatus" to work with "Conditional Experimental Mode"
+          conditional_status = self.param_memory.get_int("CEStatus")
+          override_value = 0 if conditional_status in (1, 2, 3, 4) else 1 if conditional_status >= 5 else 2
+          self.param_memory.put_int("CEStatus", override_value)
+        else:
+          experimental_mode = self.param.get_bool("ExperimentalMode")
+          # Invert the value of "ExperimentalMode"
+          put_bool_nonblocking("ExperimentalMode", not experimental_mode)
+      self.lkas_previously_pressed = lkas_pressed
+
     return ret
 
   def update_canfd(self, cp, cp_cam):
@@ -251,6 +282,37 @@ class CarState(CarStateBase):
       self.hda2_lfa_block_msg = copy.copy(cp_cam.vl["CAM_0x362"] if self.CP.flags & HyundaiFlags.CANFD_HDA2_ALT_STEERING
                                           else cp_cam.vl["CAM_0x2a4"])
 
+    # Driving personalities function
+    if self.personalities_via_wheel and ret.cruiseState.available:
+      # Sync with the onroad UI button
+      if self.param_memory.get_bool("PersonalityChangedViaUI"):
+        self.personality_profile = self.param.get_int("LongitudinalPersonality")
+        self.param_memory.put_bool("PersonalityChangedViaUI", False)
+
+      # Change personality upon steering wheel button press
+      if self.cruise_buttons[-1] == Buttons.GAP_DIST and self.prev_cruise_buttons == 0:
+        self.param_memory.put_bool("PersonalityChangedViaWheel", True)
+        self.personality_profile = (self.previous_personality_profile + 2) % 3
+
+      if self.personality_profile != self.previous_personality_profile and self.personality_profile >= 0:
+        self.param.put_int("LongitudinalPersonality", self.personality_profile)
+        self.previous_personality_profile = self.personality_profile
+
+    # Toggle Experimental Mode from steering wheel function
+    if self.experimental_mode_via_press and ret.cruiseState.available:
+      lkas_pressed = cp.vl[self.cruise_btns_msg_canfd]["LKAS_BTN"]
+      if lkas_pressed and not self.lkas_previously_pressed:
+        if self.conditional_experimental_mode:
+          # Set "CEStatus" to work with "Conditional Experimental Mode"
+          conditional_status = self.param_memory.get_int("CEStatus")
+          override_value = 0 if conditional_status in (1, 2, 3, 4) else 1 if conditional_status >= 5 else 2
+          self.param_memory.put_int("CEStatus", override_value)
+        else:
+          experimental_mode = self.param.get_bool("ExperimentalMode")
+          # Invert the value of "ExperimentalMode"
+          put_bool_nonblocking("ExperimentalMode", not experimental_mode)
+      self.lkas_previously_pressed = lkas_pressed
+
     return ret
 
   def get_can_parser(self, CP):
@@ -299,6 +361,8 @@ class CarState(CarStateBase):
       messages.append(("TCU12", 100))
     else:
       messages.append(("LVR12", 100))
+
+    messages.append(("BCM_PO_11", 50))
 
     return CANParser(DBC[CP.carFingerprint]["pt"], messages, 0)
 

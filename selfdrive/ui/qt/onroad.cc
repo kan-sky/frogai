@@ -452,7 +452,7 @@ AnnotatedCameraWidget::AnnotatedCameraWidget(VisionStreamType type, QWidget* par
 
   main_layout = new QVBoxLayout(this);
   main_layout->setMargin(UI_BORDER_SIZE);
-  main_layout->setSpacing(0);            
+  main_layout->setSpacing(0);
 
   // NDA neokii
   ic_nda = QPixmap("../assets/images/img_nda.png");
@@ -1016,7 +1016,6 @@ void AnnotatedCameraWidget::paintEvent(QPaintEvent *event) {
   QPainter painter(this);
   const double start_draw_t = millis_since_boot();
   const cereal::ModelDataV2::Reader &model = sm["modelV2"].getModelV2();
-  const cereal::RadarState::Reader &radar_state = sm["radarState"].getRadarState();
 
   // draw camera frame
   {
@@ -1068,37 +1067,31 @@ void AnnotatedCameraWidget::paintEvent(QPaintEvent *event) {
   painter.setRenderHint(QPainter::Antialiasing);
   painter.setPen(Qt::NoPen);
 
-  if (!showDriverCamera) {
-    if (s->worldObjectsVisible()) {
-      if (sm.rcv_frame("modelV2") > s->scene.started_frame) {
-        update_model(s, model, sm["uiPlan"].getUiPlan());
-        if (sm.rcv_frame("radarState") > s->scene.started_frame) {
-          update_leads(s, radar_state, model.getPosition());
-        }
+  if (s->scene.world_objects_visible && !showDriverCamera) {
+    update_model(s, model, sm["uiPlan"].getUiPlan());
+    drawLaneLines(painter, s);
+
+    if (s->scene.longitudinal_control && sm.rcv_frame("radarState") > s->scene.started_frame) {
+      auto radar_state = sm["radarState"].getRadarState();
+      update_leads(s, radar_state, model.getPosition());
+      auto lead_one = radar_state.getLeadOne();
+      auto lead_two = radar_state.getLeadTwo();
+      if (lead_one.getStatus()) {
+        drawLead(painter, lead_one, s->scene.lead_vertices[0]);
       }
-
-      drawLaneLines(painter, s);
-
-      if (s->scene.longitudinal_control) {
-        auto lead_one = radar_state.getLeadOne();
-        auto lead_two = radar_state.getLeadTwo();
-        if (lead_one.getStatus()) {
-          drawLead(painter, lead_one, s->scene.lead_vertices[0]);
-        }
-        if (lead_two.getStatus() && (std::abs(lead_one.getDRel() - lead_two.getDRel()) > 3.0)) {
-          drawLead(painter, lead_two, s->scene.lead_vertices[1]);
-        }
+      if (lead_two.getStatus() && (std::abs(lead_one.getDRel() - lead_two.getDRel()) > 3.0)) {
+        drawLead(painter, lead_two, s->scene.lead_vertices[1]);
       }
     }
-
-    // DMoji
-    if (!hideBottomIcons && (sm.rcv_frame("driverStateV2") > s->scene.started_frame) && !muteDM) {
-      update_dmonitoring(s, sm["driverStateV2"].getDriverStateV2(), dm_fade_state, rightHandDM);
-      drawDriverState(painter, s);
-    }
-
-    drawHud(painter);
   }
+
+  // DMoji
+  if (!hideBottomIcons && (sm.rcv_frame("driverStateV2") > s->scene.started_frame) && !muteDM) {
+    update_dmonitoring(s, sm["driverStateV2"].getDriverStateV2(), dm_fade_state, rightHandDM);
+    drawDriverState(painter, s);
+  }
+
+  drawHud(painter);
 
   double cur_draw_t = millis_since_boot();
   double dt = cur_draw_t - prev_draw_t;
@@ -1604,8 +1597,8 @@ void AnnotatedCameraWidget::drawStatusBar(QPainter &p) {
     {8, "Experimental Mode activated due to" + (mapOpen ? " speed" : " speed being less than " + QString::number(conditionalSpeed) + (is_metric ? " kph" : " mph"))},
     {9, "Experimental Mode activated for slower lead"},
     {10, "Experimental Mode activated for turn" + (mapOpen ? "" : QString(" / lane change"))},
-    {11, "Experimental Mode activated for stop" + (mapOpen ? "" : QString(" sign / stop light"))},
-    {12, "Experimental Mode activated for curve"}
+    {11, "Experimental Mode activated for curve"},
+    {12, "Experimental Mode activated for stop" + (mapOpen ? "" : QString(" sign / stop light"))},
   };
 
   if (alwaysOnLateral) {

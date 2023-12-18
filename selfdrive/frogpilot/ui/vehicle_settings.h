@@ -17,16 +17,12 @@ private:
   ButtonControl *selectMakeButton;
   ButtonControl *selectModelButton;
 
-  ToggleControl *lockDoorsToggle;
-  ToggleControl *sngHackToggle;
-  ToggleControl *tss2TuneToggle;
-
-  ToggleControl *evTableToggle;
-  ToggleControl *longPitchToggle;
-  ToggleControl *lowerVoltToggle;
+  QLabel *noToggles;
 
   QString brandSelection;
   QStringList models;
+
+  std::map<std::string, ParamControl*> toggles;
 
   Params params;
   Params paramsMemory{"/dev/shm/params"};
