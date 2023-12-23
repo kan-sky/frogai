@@ -548,7 +548,7 @@ void AnnotatedCameraWidget::drawHud(QPainter &p) {
   QString speedLimitStr = (speedLimit > 1) ? QString::number(std::nearbyint(speedLimit)) : "–";
   QString speedLimitOffsetStr = (showSLCOffset) ? "+" + QString::number(std::nearbyint(slcSpeedLimitOffset)) : "–";
   QString speedStr = QString::number(std::nearbyint(speed));
-  QString setSpeedStr = is_cruise_set ? QString::number(std::nearbyint(setSpeed - fmax(vtscOffset - 1, 0))) : "–";
+  QString setSpeedStr = is_cruise_set ? QString::number(std::nearbyint(vtscOffset ? vtscOffset : setSpeed)) : "–";
 
   // Draw outer box + border to contain set speed and speed limit
   const int sign_margin = 12;
@@ -852,8 +852,8 @@ void AnnotatedCameraWidget::drawLaneLines(QPainter &painter, const UIState *s) {
     // Set gradient colors based on laneWidth and blindspot
     const auto setGradientColors = [](QLinearGradient &gradient, const float laneWidth, const bool blindspot) {
       // Make the path red for smaller paths or if there's a car in the blindspot and green for larger paths
-      const double hue = (laneWidth < minLaneWidth || blindspot) ? 0.0 : 
-                         (laneWidth >= maxLaneWidth) ? 120.0 : 
+      const double hue = (laneWidth < minLaneWidth || blindspot) ? 0.0 :
+                         (laneWidth >= maxLaneWidth) ? 120.0 :
                           120.0 * (laneWidth - minLaneWidth) / (maxLaneWidth - minLaneWidth);
       const auto hue_ratio = hue / 360.0;
       gradient.setColorAt(0.0, QColor::fromHslF(hue_ratio, 0.75, 0.50, 0.6));
@@ -872,7 +872,7 @@ void AnnotatedCameraWidget::drawLaneLines(QPainter &painter, const UIState *s) {
       painter.setPen(Qt::white);
 
       QRectF boundingRect = lane.boundingRect();
-      painter.drawText(boundingRect.center(), blindspot ? "Vehicle in blind spot" : 
+      painter.drawText(boundingRect.center(), blindspot ? "Vehicle in blind spot" :
                        QString("%1%2").arg(laneWidth * conversionFactor, 0, 'f', 2).arg(unit_d));
       painter.setPen(Qt::NoPen);
     };
@@ -1048,7 +1048,7 @@ void AnnotatedCameraWidget::paintEvent(QPaintEvent *event) {
       wide_cam_requested = wide_cam_requested && s->scene.calibration_wide_valid;
     }
     paramsMemory.putBoolNonBlocking("WideCamera", wide_cam_requested);
-    CameraWidget::setStreamType(showDriverCamera || cameraView == 3 ? VISION_STREAM_DRIVER : 
+    CameraWidget::setStreamType(showDriverCamera || cameraView == 3 ? VISION_STREAM_DRIVER :
                                 wide_cam_requested && cameraView != 1 ? VISION_STREAM_WIDE_ROAD : VISION_STREAM_ROAD);
 
     s->scene.wide_cam = CameraWidget::getStreamType() == VISION_STREAM_WIDE_ROAD;
@@ -1260,7 +1260,7 @@ void AnnotatedCameraWidget::updateFrogPilotWidgets(QPainter &p) {
   if (customSignals != scene.custom_signals) {
     customSignals = scene.custom_signals;
 
-    const QString theme_path = QString("../frogpilot/assets/custom_themes/%1/images").arg(themeConfiguration.find(customSignals) != themeConfiguration.end() ? 
+    const QString theme_path = QString("../frogpilot/assets/custom_themes/%1/images").arg(themeConfiguration.find(customSignals) != themeConfiguration.end() ?
                                        themeConfiguration[customSignals].first : "stock_theme");
     const QStringList imagePaths = {
       theme_path + "/turn_signal_1.png",
