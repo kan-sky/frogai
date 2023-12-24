@@ -190,6 +190,7 @@ private:
   bool turnSignalLeft;
   bool turnSignalRight;
   double maxAcceleration;
+  float cruiseAdjustment;
   float desiredFollow;
   float laneWidthLeft;
   float laneWidthRight;
@@ -200,7 +201,6 @@ private:
   float slcSpeedLimitOffset;
   float stoppedEquivalence;
   float stoppedEquivalenceStock;
-  float vtscOffset;
   int bearingDeg;
   int cameraView;
   int conditionalSpeed;

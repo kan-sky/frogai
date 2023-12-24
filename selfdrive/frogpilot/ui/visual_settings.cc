@@ -110,15 +110,15 @@ FrogPilotVisualsPanel::FrogPilotVisualsPanel(SettingsWindow *parent) : ListWidge
     addItem(toggle);
     toggles[param.toStdString()] = toggle;
 
-    connect(toggle, &ToggleControl::toggleFlipped, [=]() {
+    connect(toggle, &ToggleControl::toggleFlipped, [this]() {
       paramsMemory.putBool("FrogPilotTogglesUpdated", true);
     });
 
-    connect(dynamic_cast<ParamValueControl*>(toggles["ScreenBrightness"]), &ParamValueControl::valueChanged, [&](int value) {
+    connect(dynamic_cast<ParamValueControl*>(toggles["ScreenBrightness"]), &ParamValueControl::valueChanged, [](int value) {
       uiState()->scene.screen_brightness = value;
     });
 
-    connect(dynamic_cast<ParamValueControl*>(toggle), &ParamValueControl::buttonPressed, [=]() {
+    connect(dynamic_cast<ParamValueControl*>(toggle), &ParamValueControl::buttonPressed, [this]() {
       paramsMemory.putBool("FrogPilotTogglesUpdated", true);
     });
   }
@@ -134,11 +134,16 @@ FrogPilotVisualsPanel::FrogPilotVisualsPanel(SettingsWindow *parent) : ListWidge
 }
 
 void FrogPilotVisualsPanel::updateMetric() {
-  std::thread([&] {
-    static bool previousIsMetric = isMetric;
+  std::thread([this] {
+    static bool checkedOnBoot = false;
+
+    bool previousIsMetric = isMetric;
     isMetric = params.getBool("IsMetric");
 
-    if (previousIsMetric == isMetric) return;
+    if (checkedOnBoot) {
+      if (previousIsMetric == isMetric) return;
+    }
+    checkedOnBoot = true;
 
     if (isMetric != previousIsMetric) {
       const double distanceConversion = isMetric ? INCH_TO_CM : CM_TO_INCH;
@@ -226,7 +231,7 @@ void FrogPilotVisualsPanel::setDefaults() {
     {"WheelIcon", FrogsGoMoo ? "1" : "0"},
   };
 
-  static bool rebootRequired = false;
+  bool rebootRequired = false;
   for (const auto &[key, value] : defaultValues) {
     if (params.get(key).empty()) {
       params.put(key, value);

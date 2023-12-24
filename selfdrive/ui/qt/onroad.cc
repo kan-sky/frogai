@@ -548,7 +548,7 @@ void AnnotatedCameraWidget::drawHud(QPainter &p) {
   QString speedLimitStr = (speedLimit > 1) ? QString::number(std::nearbyint(speedLimit)) : "–";
   QString speedLimitOffsetStr = (showSLCOffset) ? "+" + QString::number(std::nearbyint(slcSpeedLimitOffset)) : "–";
   QString speedStr = QString::number(std::nearbyint(speed));
-  QString setSpeedStr = is_cruise_set ? QString::number(std::nearbyint(vtscOffset ? vtscOffset : setSpeed)) : "–";
+  QString setSpeedStr = is_cruise_set ? QString::number(std::nearbyint(setSpeed - cruiseAdjustment)) : "–";
 
   // Draw outer box + border to contain set speed and speed limit
   const int sign_margin = 12;
@@ -567,8 +567,8 @@ void AnnotatedCameraWidget::drawHud(QPainter &p) {
   int bottom_radius = has_eu_speed_limit ? 100 : 32;
 
   QRect set_speed_rect(QPoint(60 + (default_size.width() - set_speed_size.width()) / 2, 45), set_speed_size);
-  if (is_cruise_set && fmax(vtscOffset - 1, 0)) {
-    const float transition = qBound(0.0f, 4.0f * (vtscOffset / setSpeed), 1.0f);
+  if (is_cruise_set && cruiseAdjustment) {
+    const float transition = qBound(0.0f, 4.0f * (cruiseAdjustment / setSpeed), 1.0f);
     const QColor min = whiteColor(75), max = redColor(75);
 
     p.setPen(QPen(QColor::fromRgbF(
@@ -1189,6 +1189,7 @@ void AnnotatedCameraWidget::updateFrogPilotWidgets(QPainter &p) {
   conditionalSpeed = scene.conditional_speed;
   conditionalSpeedLead = scene.conditional_speed_lead;
   conditionalStatus = scene.conditional_status;
+  cruiseAdjustment = 0.1 * fmax((setSpeed - scene.adjusted_cruise - 1), 0) * (is_metric ? MS_TO_KPH : MS_TO_MPH) + 0.9 * cruiseAdjustment;
   customColors = scene.custom_colors;
   desiredFollow = scene.desired_follow;
   experimentalMode = scene.experimental_mode;
@@ -1210,7 +1211,6 @@ void AnnotatedCameraWidget::updateFrogPilotWidgets(QPainter &p) {
   stoppedEquivalenceStock = scene.stopped_equivalence_stock;
   turnSignalLeft = scene.turn_signal_left;
   turnSignalRight = scene.turn_signal_right;
-  vtscOffset = 0.1 * scene.vtsc_offset * (is_metric ? MS_TO_KPH : MS_TO_MPH) + 0.9 * vtscOffset;
 
   if (!showDriverCamera) {
     if (leadInfo) {

@@ -265,6 +265,8 @@ class LongitudinalPlanner:
     frogpilot_plan_send.valid = sm.all_checks(service_list=['carState', 'controlsState'])
     frogpilotLongitudinalPlan = frogpilot_plan_send.frogpilotLongitudinalPlan
 
+    frogpilotLongitudinalPlan.adjustedCruise = float(min(self.mtsc_target, self.vtsc_target))
+
     frogpilotLongitudinalPlan.conditionalExperimental = ConditionalExperimentalMode.experimental_mode
     frogpilotLongitudinalPlan.distances = self.x_desired_trajectory.tolist()
     frogpilotLongitudinalPlan.greenLight = bool(self.green_light)
@@ -279,8 +281,6 @@ class LongitudinalPlanner:
     frogpilotLongitudinalPlan.desiredFollowDistance = self.mpc.safe_obstacle_distance - self.mpc.stopped_equivalence_factor
     frogpilotLongitudinalPlan.safeObstacleDistanceStock = self.mpc.safe_obstacle_distance_stock
     frogpilotLongitudinalPlan.stoppedEquivalenceFactorStock = self.mpc.stopped_equivalence_factor_stock
-
-    frogpilotLongitudinalPlan.vtscOffset = float(max(self.mtsc_target, self.vtsc_target))
 
     pm.send('frogpilotLongitudinalPlan', frogpilot_plan_send)
 
@@ -314,7 +314,7 @@ class LongitudinalPlanner:
         self.slc_target = self.overridden_speed
 
       if self.slc_target == 0:
-        self.vtsc_target = v_cruise
+        self.slc_target = v_cruise
     else:
       self.overriden_speed = 0
       self.slc_target = v_cruise

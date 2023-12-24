@@ -306,11 +306,11 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : ListWid
       }
     });
 
-    connect(toggle, &ToggleControl::toggleFlipped, [=]() {
+    connect(toggle, &ToggleControl::toggleFlipped, [this]() {
       paramsMemory.putBool("FrogPilotTogglesUpdated", true);
     });
 
-    connect(dynamic_cast<ParamValueControl*>(toggle), &ParamValueControl::buttonPressed, [=]() {
+    connect(dynamic_cast<ParamValueControl*>(toggle), &ParamValueControl::buttonPressed, [this]() {
       paramsMemory.putBool("FrogPilotTogglesUpdated", true);
     });
   }
@@ -331,11 +331,16 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : ListWid
 }
 
 void FrogPilotControlsPanel::updateMetric() {
-  std::thread([&] {
-    static bool previousIsMetric = isMetric;
+  std::thread([this] {
+    static bool checkedOnBoot = false;
+
+    bool previousIsMetric = isMetric;
     isMetric = params.getBool("IsMetric");
 
-    if (previousIsMetric == isMetric) return;
+    if (checkedOnBoot) {
+      if (previousIsMetric == isMetric) return;
+    }
+    checkedOnBoot = true;
 
     if (isMetric != previousIsMetric) {
       const double distanceConversion = isMetric ? FOOT_TO_METER : METER_TO_FOOT;
@@ -496,7 +501,7 @@ void FrogPilotControlsPanel::setDefaults() {
     {"VisionTurnControl", "1"},
   };
 
-  static bool rebootRequired = false;
+  bool rebootRequired = false;
   for (const auto &[key, value] : defaultValues) {
     if (params.get(key).empty()) {
       params.put(key, value);

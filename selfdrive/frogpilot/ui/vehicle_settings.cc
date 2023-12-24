@@ -143,7 +143,7 @@ FrogPilotVehiclesPanel::FrogPilotVehiclesPanel(SettingsWindow *parent) : ListWid
 }
 
 void FrogPilotVehiclesPanel::setModels() {
-  std::thread([&] {
+  std::thread([this] {
     carMake = QString::fromStdString(params.get("CarMake"));
     const QString dirPath = "../../selfdrive/car";
     models = getCarNames(dirPath, carMake);
@@ -152,7 +152,7 @@ void FrogPilotVehiclesPanel::setModels() {
 }
 
 void FrogPilotVehiclesPanel::setToggles() {
-  std::thread([&] {
+  std::thread([this] {
     selectModelButton->setVisible(!carMake.isEmpty());
 
     if (!carMake.isEmpty()) {
@@ -194,7 +194,7 @@ void FrogPilotVehiclesPanel::setDefaults() {
     {"TSS2Tune", "1"},
   };
 
-  static bool rebootRequired = false;
+  bool rebootRequired = false;
   for (const auto &[key, value] : defaultValues) {
     if (params.get(key).empty()) {
       params.put(key, value);
