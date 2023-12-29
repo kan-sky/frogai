@@ -45,7 +45,7 @@ FrogPilot is my custom "Frog Themed" fork of openpilot that has been tailored to
 
 FrogPilot was last updated on:
 
-**December 22nd, 2023**
+**December 25th, 2023**
 
 Features
 ------
@@ -177,9 +177,8 @@ How to Install
 Easiest way to install FrogPilot is via this URL at the installation screen:
 
 ```
-https://installer.comma.ai/FrogAi/FrogPilot
+frogpilot.download
 ```
-Be sure to capitalize the "F" and "P" in "FrogPilot" otherwise the installation will fail.
 
 DO NOT install the "FrogPilot-Development" branch. I'm constantly breaking things on there so unless you don't want to use openpilot, NEVER install it!
 

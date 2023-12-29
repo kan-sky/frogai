@@ -6,12 +6,6 @@
 #include "selfdrive/ui/ui.h"
 
 FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : ListWidget(parent) {
-  backButton = new ButtonControl(tr(""), tr("BACK"));
-  connect(backButton, &ButtonControl::clicked, [this]() {
-    hideSubToggles();
-  });
-  addItem(backButton);
-
   const std::vector<std::tuple<QString, QString, QString, QString>> controlToggles {
     {"AdjustablePersonalities", "Adjustable Personalities", "Use the 'Distance' button on the steering wheel or the onroad UI to switch between openpilot's driving personalities.\n\n1 bar = Aggressive\n2 bars = Standard\n3 bars = Relaxed", "../frogpilot/assets/toggle_icons/icon_distance.png"},
 
@@ -109,6 +103,10 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : ListWid
       std::vector<QString> curveToggles{tr("CECurvesLead")};
       std::vector<QString> curveToggleNames{tr("With Lead")};
       toggle = new ParamToggleControl("CECurves", tr("Curve Detected Ahead"), tr("Switch to 'Experimental Mode' when a curve is detected."), "", curveToggles, curveToggleNames);
+    } else if (param == "CEStopLights") {
+      std::vector<QString> stopLightToggles{tr("CEStopLightsLead")};
+      std::vector<QString> stopLightToggleNames{tr("With Lead")};
+      toggle = new ParamToggleControl("CEStopLights", tr("Stop Lights and Stop Signs"), tr("Switch to 'Experimental Mode' when a stop light or stop sign is detected."), "", stopLightToggles, stopLightToggleNames);
 
     } else if (param == "CustomPersonalities") {
       ParamManageControl *customPersonalitiesToggle = new ParamManageControl(param, title, desc, icon, this);
@@ -331,6 +329,13 @@ FrogPilotControlsPanel::FrogPilotControlsPanel(SettingsWindow *parent) : ListWid
 }
 
 void FrogPilotControlsPanel::updateMetric() {
+  if (isVisible()) {
+    if (paramsMemory.getBool("CloseFrogPilotParents")) {
+      hideSubToggles();
+      paramsMemory.putBool("CloseFrogPilotParents", false);
+    }
+  }
+
   std::thread([this] {
     static bool checkedOnBoot = false;
 
@@ -411,7 +416,7 @@ void FrogPilotControlsPanel::updateMetric() {
 }
 
 void FrogPilotControlsPanel::parentToggleClicked() {
-  backButton->setVisible(true);
+  paramsMemory.putBool("FrogPilotTogglesOpen", true);
   conditionalSpeedsImperial->setVisible(false);
   conditionalSpeedsMetric->setVisible(false);
   modelSelectorButton->setVisible(false);
@@ -419,7 +424,6 @@ void FrogPilotControlsPanel::parentToggleClicked() {
 }
 
 void FrogPilotControlsPanel::hideSubToggles() {
-  backButton->setVisible(false);
   conditionalSpeedsImperial->setVisible(false);
   conditionalSpeedsMetric->setVisible(false);
   modelSelectorButton->setVisible(true);
@@ -442,6 +446,8 @@ void FrogPilotControlsPanel::hideSubToggles() {
 }
 
 void FrogPilotControlsPanel::hideEvent(QHideEvent *event) {
+  paramsMemory.putBool("FrogPilotTogglesOpen", false);
+
   hideSubToggles();
 }
 
@@ -465,6 +471,7 @@ void FrogPilotControlsPanel::setDefaults() {
     {"CESpeed", "0"},
     {"CESpeedLead", "0"},
     {"CEStopLights", "1"},
+    {"CEStopLightsLead", FrogsGoMoo ? "0" : "1"},
     {"ConditionalExperimental", "1"},
     {"CurveSensitivity", FrogsGoMoo ? "125" : "100"},
     {"DeviceShutdown", "9"},

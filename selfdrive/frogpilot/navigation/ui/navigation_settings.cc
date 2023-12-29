@@ -98,7 +98,7 @@ void FrogPilotNavigationPanel::updateStatuses() {
   const int totalFiles = extractFromJson<int>(osmDownloadProgress, "\"total_files\":");
   const int downloadedFiles = extractFromJson<int>(osmDownloadProgress, "\"downloaded_files\":");
 
-  if (downloadedFiles >= totalFiles && !osmDownloadProgress.empty()) {
+  if (paramsMemory.get("OSMDownloadLocations").empty()) {
     downloadActive = false;
     updateDownloadedLabel();
   }

@@ -287,7 +287,7 @@ class LongitudinalPlanner:
   def v_cruise_update(self, carState, modelData, enabled, v_cruise, v_ego):
     # Pfeiferj's Map Turn Speed Controller
     if self.map_turn_speed_controller:
-      self.mtsc_target = MapTurnSpeedController.target_speed(v_ego, carState.aEgo)
+      self.mtsc_target = np.clip(MapTurnSpeedController.target_speed(v_ego, carState.aEgo), 0, v_cruise)
       if self.mtsc_target == 0:
         self.mtsc_target = v_cruise
     else:
