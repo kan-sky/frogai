@@ -48,9 +48,10 @@ Desire = log.LateralPlan.Desire
 LaneChangeState = log.LateralPlan.LaneChangeState
 LaneChangeDirection = log.LateralPlan.LaneChangeDirection
 EventName = car.CarEvent.EventName
-FrogPilotEventName = custom.FrogPilotEvents
 ButtonType = car.CarState.ButtonEvent.Type
 SafetyModel = car.CarParams.SafetyModel
+
+FrogPilotEventName = custom.FrogPilotEvents
 
 IGNORED_SAFETY_MODES = (SafetyModel.silent, SafetyModel.noOutput)
 CSID_MAP = {"1": EventName.roadCameraError, "2": EventName.wideRoadCameraError, "0": EventName.driverCameraError}
@@ -84,6 +85,8 @@ class Controls:
 
     fire_the_babysitter = self.params.get_bool("FireTheBabysitter")
     mute_dm = fire_the_babysitter and self.params.get_bool("MuteDM")
+
+    self.stopped_for_light_previously = False
 
     ignore = self.sensor_packets + ['testJoystick']
     if SIMULATION:
@@ -126,6 +129,8 @@ class Controls:
       if self.disengage_on_accelerator:
         self.disengage_on_accelerator = False
         self.params.put_bool("DisengageOnAccelerator", False)
+
+    self.CP.alternativeExperience |= ALTERNATIVE_EXPERIENCE.RAISE_LONGITUDINAL_LIMITS_TO_ISO_MAX
 
     # read params
     self.is_metric = self.params.get_bool("IsMetric")
@@ -489,8 +494,15 @@ class Controls:
       if self.sm['modelV2'].frameDropPerc > 20:
         self.events.add(EventName.modeldLagging)
 
-    if self.sm['frogpilotLongitudinalPlan'].greenLight:
-      self.events.add(FrogPilotEventName.greenLight)
+    # Green light alert
+    if self.green_light_alert and self.enabled:
+      stopped_for_light = self.sm['frogpilotLongitudinalPlan'].redLight and CS.standstill
+      green_light = not stopped_for_light and self.stopped_for_light_previously and not CS.gasPressed
+      self.stopped_for_light_previously = stopped_for_light
+
+      if green_light:
+        self.events.add(FrogPilotEventName.greenLight)
+
 
     # kans: events for roadSpeedLimiter
     if self.slowing_down_sound_alert:
@@ -768,7 +780,7 @@ class Controls:
         good_speed = CS.vEgo > 5
         max_torque = abs(self.last_actuators.steer) > 0.99
         if undershooting and turning and good_speed and max_torque:
-          lac_log.active and self.events.add(FrogPilotEventName.frogSteerSaturated if self.frog_sounds else EventName.steerSaturated)
+          lac_log.active and self.events.add(FrogPilotEventName.frogSteerSaturated if self.goat_scream else EventName.steerSaturated)
       elif lac_log.saturated:
         dpath_points = lat_plan.dPathPoints
         if len(dpath_points):
@@ -1001,11 +1013,16 @@ class Controls:
       if self.CP.openpilotLongitudinalControl:
         if self.conditional_experimental_mode:
           self.experimental_mode = self.sm['frogpilotLongitudinalPlan'].conditionalExperimental
+          time.sleep(0.01)
         else:
           self.experimental_mode = self.params.get_bool("ExperimentalMode") or self.params_memory.get_bool("SLCExperimentalMode")
+          time.sleep(0.1)
       if self.CP.notCar:
         self.joystick_mode = self.params.get_bool("JoystickDebugMode")
-      time.sleep(0.1)
+
+      # Update FrogPilot parameters
+      if self.params_memory.get_bool("FrogPilotTogglesUpdated"):
+        self.update_frogpilot_params()
 
   def controlsd_thread(self):
     e = threading.Event()
@@ -1016,10 +1033,6 @@ class Controls:
         self.step()
         self.rk.monitor_time()
         self.prof.display()
-
-        # Update FrogPilot parameters
-        if self.params_memory.get_bool("FrogPilotTogglesUpdated"):
-          self.update_frogpilot_params()
 
     except SystemExit:
       e.set()
@@ -1036,7 +1049,9 @@ class Controls:
     self.custom_theme = self.params.get_bool("CustomTheme")
     self.custom_sounds = self.params.get_int("CustomSounds") if self.custom_theme else 0
     self.frog_sounds = self.custom_sounds == 1
+    self.goat_scream = self.params.get_bool("GoatScream") and self.frog_sounds
 
+    self.green_light_alert = self.params.get_bool("GreenLightAlert")
     self.pause_lateral_on_signal = self.params.get_bool("PauseLateralOnSignal")
     self.reverse_cruise_increase = self.params.get_bool("ReverseCruise")
 

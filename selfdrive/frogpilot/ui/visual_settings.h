@@ -2,9 +2,10 @@
 
 #include <set>
 
+#include "selfdrive/frogpilot/ui/frogpilot_functions.h"
 #include "selfdrive/ui/qt/offroad/settings.h"
 
-class FrogPilotVisualsPanel : public ListWidget {
+class FrogPilotVisualsPanel : public FrogPilotListWidget {
   Q_OBJECT
 
 public:
@@ -13,8 +14,9 @@ public:
 private:
   void hideEvent(QHideEvent *event);
   void hideSubToggles();
-  void setDefaults();
-  void updateMetric();
+  void parentToggleClicked();
+  void updateState();
+  void updateToggles();
 
   std::set<QString> customOnroadUIKeys;
   std::set<QString> customThemeKeys;

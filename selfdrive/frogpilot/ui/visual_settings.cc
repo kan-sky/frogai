@@ -1,11 +1,7 @@
-#include <cmath>
-#include <filesystem>
-#include <unordered_set>
-
 #include "selfdrive/frogpilot/ui/visual_settings.h"
 #include "selfdrive/ui/ui.h"
 
-FrogPilotVisualsPanel::FrogPilotVisualsPanel(SettingsWindow *parent) : ListWidget(parent) {
+FrogPilotVisualsPanel::FrogPilotVisualsPanel(SettingsWindow *parent) : FrogPilotListWidget(parent) {
   const std::vector<std::tuple<QString, QString, QString, QString>> visualToggles {
     {"CustomTheme", "Custom Themes", "Enable the ability to use custom themes.", "../frogpilot/assets/wheel_images/frog.png"},
     {"CustomColors", "Custom Colors", "Switch out the standard openpilot color scheme with a custom color scheme.\n\nWant to submit your own color scheme? Post it in the 'feature-request' channel in the FrogPilot Discord!", ""},
@@ -13,7 +9,7 @@ FrogPilotVisualsPanel::FrogPilotVisualsPanel(SettingsWindow *parent) : ListWidge
     {"CustomSignals", "Custom Signals", "Add custom animations for your turn signals for a personal touch!\n\nWant to submit your own turn signal animation? Post it in the 'feature-request' channel in the FrogPilot Discord!", ""},
     {"CustomSounds", "Custom Sounds", "Switch out the standard openpilot sounds with a set of custom sounds.\n\nWant to submit your own sound pack? Post it in the 'feature-request' channel in the FrogPilot Discord!", ""},
 
-    {"CameraView", "Camera View (Cosmetic Only)", "Choose your preferred camera view for the onroad UI. This is a visual change only and doesn't impact openpilot.", "../frogpilot/assets/toggle_icons/icon_camera.png"},
+    {"CameraView", "Camera View", "Choose your preferred camera view for the onroad UI. This is a visual change only and doesn't impact openpilot.", "../frogpilot/assets/toggle_icons/icon_camera.png"},
     {"Compass", "Compass", "Add a compass to your onroad UI.", "../frogpilot/assets/toggle_icons/icon_compass.png"},
 
     {"CustomUI", "Custom Onroad UI", "Customize the Onroad UI with some additional visual functions.", "../assets/offroad/icon_road.png"},
@@ -43,59 +39,75 @@ FrogPilotVisualsPanel::FrogPilotVisualsPanel(SettingsWindow *parent) : ListWidge
     ParamControl *toggle;
 
     if (param == "CameraView") {
-      toggle = new ParamValueControl(param, title, desc, icon, 0, 3, {{0, "Auto"}, {1, "Standard"}, {2, "Wide"}, {3, "Driver"}}, this, true);
+      std::vector<QString> cameraOptions{tr("Auto"), tr("Standard"), tr("Wide"), tr("Driver")};
+      FrogPilotButtonParamControl *preferredCamera = new FrogPilotButtonParamControl(param, title, desc, icon, cameraOptions);
+      toggle = preferredCamera;
 
     } else if (param == "CustomTheme") {
-      ParamManageControl *customThemeToggle = new ParamManageControl(param, title, desc, icon, this);
-      connect(customThemeToggle, &ParamManageControl::manageButtonClicked, this, [this]() {
-        paramsMemory.putBool("FrogPilotTogglesOpen", true);
+      FrogPilotParamManageControl *customThemeToggle = new FrogPilotParamManageControl(param, title, desc, icon, this);
+      QObject::connect(customThemeToggle, &FrogPilotParamManageControl::manageButtonClicked, this, [this]() {
+        parentToggleClicked();
         for (auto &[key, toggle] : toggles) {
           toggle->setVisible(customThemeKeys.find(key.c_str()) != customThemeKeys.end());
         }
       });
       toggle = customThemeToggle;
     } else if (param == "CustomColors" || param == "CustomIcons" || param == "CustomSignals" || param == "CustomSounds") {
-      std::map<int, QString> themeLabels = {{0, "Stock"}, {1, "Frog"}, {2, "Tesla"}, {3, "Stalin"}};
-      toggle = new ParamValueControl(param, title, desc, icon, 0, 3, themeLabels, this, true);
+      std::vector<QString> themeOptions{tr("Stock"), tr("Frog"), tr("Tesla"), tr("Stalin")};
+      FrogPilotButtonParamControl *themeSelection = new FrogPilotButtonParamControl(param, title, desc, icon, themeOptions);
+      toggle = themeSelection;
 
+      QObject::connect(static_cast<FrogPilotButtonParamControl*>(toggle), &FrogPilotButtonParamControl::buttonClicked, [this](int id) {
+        if (id == 1) {
+          if (FrogPilotConfirmationDialog::yesorno("Do you want to enable the bonus 'Goat' sound effect?", this)) {
+            params.putBool("GoatScream", true);
+          } else {
+            params.putBool("GoatScream", false);
+          }
+        }
+      });
     } else if (param == "CustomUI") {
-      ParamManageControl *customUIToggle = new ParamManageControl(param, title, desc, icon, this);
-      connect(customUIToggle, &ParamManageControl::manageButtonClicked, this, [this]() {
-        paramsMemory.putBool("FrogPilotTogglesOpen", true);
+      FrogPilotParamManageControl *customUIToggle = new FrogPilotParamManageControl(param, title, desc, icon, this);
+      QObject::connect(customUIToggle, &FrogPilotParamManageControl::manageButtonClicked, this, [this]() {
+        parentToggleClicked();
         for (auto &[key, toggle] : toggles) {
           toggle->setVisible(customOnroadUIKeys.find(key.c_str()) != customOnroadUIKeys.end());
         }
       });
       toggle = customUIToggle;
+    } else if (param == "LeadInfo") {
+      std::vector<QString> leadInfoToggles{tr("UseSI")};
+      std::vector<QString> leadInfoToggleNames{tr("Use SI Values")};
+      toggle = new FrogPilotParamToggleControl(param, title, desc, icon, leadInfoToggles, leadInfoToggleNames);
 
     } else if (param == "ModelUI") {
-      ParamManageControl *modelUIToggle = new ParamManageControl(param, title, desc, icon, this);
-      connect(modelUIToggle, &ParamManageControl::manageButtonClicked, this, [this]() {
-        paramsMemory.putBool("FrogPilotTogglesOpen", true);
+      FrogPilotParamManageControl *modelUIToggle = new FrogPilotParamManageControl(param, title, desc, icon, this);
+      QObject::connect(modelUIToggle, &FrogPilotParamManageControl::manageButtonClicked, this, [this]() {
+        parentToggleClicked();
         for (auto &[key, toggle] : toggles) {
           toggle->setVisible(modelUIKeys.find(key.c_str()) != modelUIKeys.end());
         }
       });
       toggle = modelUIToggle;
     } else if (param == "LaneLinesWidth" || param == "RoadEdgesWidth") {
-      toggle = new ParamValueControl(param, title, desc, icon, 0, 24, std::map<int, QString>(), this, false, " inches");
+      toggle = new FrogPilotParamValueControl(param, title, desc, icon, 0, 24, std::map<int, QString>(), this, false, " inches");
     } else if (param == "PathEdgeWidth") {
-      toggle = new ParamValueControl(param, title, desc, icon, 0, 100, std::map<int, QString>(), this, false, "%");
+      toggle = new FrogPilotParamValueControl(param, title, desc, icon, 0, 100, std::map<int, QString>(), this, false, "%");
     } else if (param == "PathWidth") {
-      toggle = new ParamValueControl(param, title, desc, icon, 0, 100, std::map<int, QString>(), this, false, " feet", 10);
+      toggle = new FrogPilotParamValueControl(param, title, desc, icon, 0, 100, std::map<int, QString>(), this, false, " feet", 10);
 
     } else if (param == "ScreenBrightness") {
       std::map<int, QString> brightnessLabels;
       for (int i = 0; i <= 101; ++i) {
         brightnessLabels[i] = i == 0 ? "Screen Off" : i == 101 ? "Auto" : QString::number(i) + "%";
       }
-      toggle = new ParamValueControl(param, title, desc, icon, 0, 101, brightnessLabels, this, false);
+      toggle = new FrogPilotParamValueControl(param, title, desc, icon, 0, 101, brightnessLabels, this, false);
 
     } else if (param == "WheelIcon") {
       std::vector<QString> wheelToggles{tr("RotatingWheel")};
-      std::vector<QString> wheelToggleNames{tr("Rotating Icon")};
+      std::vector<QString> wheelToggleNames{tr("Rotating")};
       std::map<int, QString> steeringWheelLabels = {{0, "Stock"}, {1, "Lexus"}, {2, "Toyota"}, {3, "Frog"}, {4, "Rocket"}, {5, "Hyundai"}, {6, "Stalin"}};
-      toggle = new ParamValueToggleControl(param, title, desc, icon, 0, 6, steeringWheelLabels, this, true, "", 1, wheelToggles, wheelToggleNames);
+      toggle = new FrogPilotParamValueToggleControl(param, title, desc, icon, 0, 6, steeringWheelLabels, this, true, "", 1, wheelToggles, wheelToggleNames);
 
     } else {
       toggle = new ParamControl(param, title, desc, icon, this);
@@ -104,16 +116,20 @@ FrogPilotVisualsPanel::FrogPilotVisualsPanel(SettingsWindow *parent) : ListWidge
     addItem(toggle);
     toggles[param.toStdString()] = toggle;
 
-    connect(toggle, &ToggleControl::toggleFlipped, [this]() {
-      paramsMemory.putBool("FrogPilotTogglesUpdated", true);
+    QObject::connect(toggle, &ToggleControl::toggleFlipped, [this]() {
+      updateToggles();
     });
 
-    connect(dynamic_cast<ParamValueControl*>(toggles["ScreenBrightness"]), &ParamValueControl::valueChanged, [](int value) {
-      uiState()->scene.screen_brightness = value;
+    QObject::connect(static_cast<FrogPilotParamValueControl*>(toggle), &FrogPilotParamValueControl::buttonPressed, [this]() {
+      updateToggles();
     });
 
-    connect(dynamic_cast<ParamValueControl*>(toggle), &ParamValueControl::buttonPressed, [this]() {
-      paramsMemory.putBool("FrogPilotTogglesUpdated", true);
+    QObject::connect(toggle, &AbstractControl::showDescriptionEvent, [this]() {
+      update();
+    });
+
+    QObject::connect(static_cast<FrogPilotParamManageControl*>(toggle), &FrogPilotParamManageControl::manageButtonClicked, [this]() {
+      update();
     });
   }
 
@@ -121,17 +137,23 @@ FrogPilotVisualsPanel::FrogPilotVisualsPanel(SettingsWindow *parent) : ListWidge
   customThemeKeys = {"CustomColors", "CustomIcons", "CustomSignals", "CustomSounds"};
   modelUIKeys = {"AccelerationPath", "LaneLinesWidth", "PathEdgeWidth", "PathWidth", "RoadEdgesWidth", "UnlimitedLength"};
 
-  QObject::connect(uiState(), &UIState::uiUpdate, this, &FrogPilotVisualsPanel::updateMetric);
+  QObject::connect(uiState(), &UIState::uiUpdate, this, &FrogPilotVisualsPanel::updateState);
 
   hideSubToggles();
-  setDefaults();
 }
 
-void FrogPilotVisualsPanel::updateMetric() {
+void FrogPilotVisualsPanel::updateToggles() {
+  std::thread([this]() {
+    paramsMemory.putBool("FrogPilotTogglesUpdated", true);
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    paramsMemory.putBool("FrogPilotTogglesUpdated", false);
+  }).detach();
+}
+
+void FrogPilotVisualsPanel::updateState() {
   if (isVisible()) {
-    if (paramsMemory.getBool("CloseFrogPilotParents")) {
+    if (paramsMemory.getInt("FrogPilotTogglesOpen") == 2) {
       hideSubToggles();
-      paramsMemory.putBool("CloseFrogPilotParents", false);
     }
   }
 
@@ -154,9 +176,9 @@ void FrogPilotVisualsPanel::updateMetric() {
       params.putInt("PathWidth", std::nearbyint(params.getInt("PathWidth") * speedConversion));
     }
 
-    ParamValueControl *laneLinesWidthToggle = dynamic_cast<ParamValueControl*>(toggles["LaneLinesWidth"]);
-    ParamValueControl *roadEdgesWidthToggle = dynamic_cast<ParamValueControl*>(toggles["RoadEdgesWidth"]);
-    ParamValueControl *pathWidthToggle = dynamic_cast<ParamValueControl*>(toggles["PathWidth"]);
+    FrogPilotParamValueControl *laneLinesWidthToggle = static_cast<FrogPilotParamValueControl*>(toggles["LaneLinesWidth"]);
+    FrogPilotParamValueControl *roadEdgesWidthToggle = static_cast<FrogPilotParamValueControl*>(toggles["RoadEdgesWidth"]);
+    FrogPilotParamValueControl *pathWidthToggle = static_cast<FrogPilotParamValueControl*>(toggles["PathWidth"]);
 
     if (isMetric) {
       laneLinesWidthToggle->setDescription("Customize the lane line width.\n\nDefault matches the Vienna average of 10 centimeters.");
@@ -181,7 +203,13 @@ void FrogPilotVisualsPanel::updateMetric() {
   }).detach();
 }
 
+void FrogPilotVisualsPanel::parentToggleClicked() {
+  paramsMemory.putInt("FrogPilotTogglesOpen", 1);
+}
+
 void FrogPilotVisualsPanel::hideSubToggles() {
+  paramsMemory.putInt("FrogPilotTogglesOpen", 0);
+
   for (auto &[key, toggle] : toggles) {
     const bool subToggles = modelUIKeys.find(key.c_str()) != modelUIKeys.end() ||
                             customOnroadUIKeys.find(key.c_str()) != customOnroadUIKeys.end() ||
@@ -191,59 +219,5 @@ void FrogPilotVisualsPanel::hideSubToggles() {
 }
 
 void FrogPilotVisualsPanel::hideEvent(QHideEvent *event) {
-  paramsMemory.putBool("FrogPilotTogglesOpen", false);
-
   hideSubToggles();
-}
-
-void FrogPilotVisualsPanel::setDefaults() {
-  const bool FrogsGoMoo = params.get("DongleId").substr(0, 3) == "be6";
-
-  const std::map<std::string, std::string> defaultValues {
-    {"AccelerationPath", "1"},
-    {"AdjacentPath", FrogsGoMoo ? "1" : "0"},
-    {"BlindSpotPath", "1"},
-    {"CameraView", FrogsGoMoo ? "1" : "0"},
-    {"Compass", FrogsGoMoo ? "1" : "0"},
-    {"CustomColors", "1"},
-    {"CustomIcons", "1"},
-    {"CustomSignals", "1"},
-    {"CustomSounds", "1"},
-    {"CustomTheme", "1"},
-    {"CustomUI", "1"},
-    {"DriverCamera", "0"},
-    {"GreenLightAlert", "0"},
-    {"LaneLinesWidth", "4"},
-    {"LeadInfo", FrogsGoMoo ? "1" : "0"},
-    {"ModelUI", "1"},
-    {"NumericalTemp", FrogsGoMoo ? "1" : "0"},
-    {"PathEdgeWidth", "20"},
-    {"PathWidth", "61"},
-    {"RoadEdgesWidth", "2"},
-    {"RoadNameUI", "1"},
-    {"RotatingWheel", "1"},
-    {"ScreenBrightness", "101"},
-    {"ShowCPU", FrogsGoMoo ? "1" : "0"},
-    {"ShowMemoryUsage", FrogsGoMoo ? "1" : "0"},
-    {"ShowFPS", FrogsGoMoo ? "1" : "0"},
-    {"Sidebar", FrogsGoMoo ? "1" : "0"},
-    {"SilentMode", "0"},
-    {"UnlimitedLength", "1"},
-    {"WheelIcon", FrogsGoMoo ? "1" : "0"},
-  };
-
-  bool rebootRequired = false;
-  for (const auto &[key, value] : defaultValues) {
-    if (params.get(key).empty()) {
-      params.put(key, value);
-      rebootRequired = true;
-    }
-  }
-
-  if (rebootRequired) {
-    while (!std::filesystem::exists("/data/openpilot/prebuilt")) {
-      std::this_thread::sleep_for(std::chrono::seconds(1));
-    }
-    Hardware::reboot();
-  }
 }
