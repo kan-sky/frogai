@@ -3,9 +3,9 @@ import numpy as np
 
 from openpilot.common.conversions import Conversions as CV
 from openpilot.common.numpy_fast import clip, interp
-from openpilot.selfdrive.controls.lib.desire_helper import DesireHelper
-from openpilot.selfdrive.controls.lib.drive_helpers import V_CRUISE_MAX, CONTROL_N
+from openpilot.selfdrive.controls.lib.drive_helpers import CONTROL_N, V_CRUISE_MAX
 from openpilot.selfdrive.controls.lib.longitudinal_mpc_lib.long_mpc import T_IDXS as T_IDXS_MPC
+from openpilot.selfdrive.controls.lib.longitudinal_planner import A_CRUISE_MIN, A_CRUISE_MAX_VALS, A_CRUISE_MAX_BP, get_max_accel
 from openpilot.selfdrive.modeld.constants import ModelConstants
 
 from openpilot.selfdrive.frogpilot.functions.conditional_experimental_mode import ConditionalExperimentalMode
@@ -16,12 +16,7 @@ from openpilot.selfdrive.frogpilot.functions.speed_limit_controller import Speed
 MIN_TARGET_V = 5    # m/s
 TARGET_LAT_A = 1.9  # m/s^2
 
-
 # Acceleration profiles - Credit goes to the DragonPilot team!
-A_CRUISE_MIN = -1.2
-A_CRUISE_MAX_VALS = [1.6, 1.2, 0.8, 0.6]
-A_CRUISE_MAX_BP = [0., 10.0, 25., 40.]
-
                  # MPH = [0.,  35,   35,  40,    40,  45,    45,  67,    67,   67, 123]
 A_CRUISE_MIN_BP_CUSTOM = [0., 2.0, 2.01, 11., 11.01, 18., 18.01, 28., 28.01,  33., 55.]
                  # MPH = [0., 6.71, 13.4, 17.9, 24.6, 33.6, 44.7, 55.9, 67.1, 123]
@@ -32,10 +27,6 @@ A_CRUISE_MAX_VALS_ECO_TUNE = [3.5, 3.3, 1.7, 1.1, .76, .62, .47, .36, .28, .09]
 
 A_CRUISE_MIN_VALS_SPORT_TUNE = [-0.500, -0.500, -0.42, -0.42, -0.42, -0.42, -0.40, -0.35, -0.35, -0.30, -0.30]
 A_CRUISE_MAX_VALS_SPORT_TUNE = [3.5, 3.5, 3.0, 2.6, 1.4, 1.0, 0.7, 0.6, .38, .2]
-
-
-def get_max_accel(v_ego):
-  return interp(v_ego, A_CRUISE_MAX_BP, A_CRUISE_MAX_VALS)
 
 def get_min_accel_eco_tune(v_ego):
   return interp(v_ego, A_CRUISE_MIN_BP_CUSTOM, A_CRUISE_MIN_VALS_ECO_TUNE)
@@ -49,10 +40,22 @@ def get_min_accel_sport_tune(v_ego):
 def get_max_accel_sport_tune(v_ego):
   return interp(v_ego, A_CRUISE_MAX_BP_CUSTOM, A_CRUISE_MAX_VALS_SPORT_TUNE)
 
+def calculate_lane_width(lane, current_lane, road_edge):
+  lane_x, lane_y = np.array(lane.x), np.array(lane.y)
+  edge_x, edge_y = np.array(road_edge.x), np.array(road_edge.y)
+  current_x, current_y = np.array(current_lane.x), np.array(current_lane.y)
+
+  lane_y_interp = np.interp(current_x, lane_x[lane_x.argsort()], lane_y[lane_x.argsort()])
+  road_edge_y_interp = np.interp(current_x, edge_x[edge_x.argsort()], edge_y[edge_x.argsort()])
+
+  distance_to_lane = np.mean(np.abs(current_y - lane_y_interp))
+  distance_to_road_edge = np.mean(np.abs(current_y - road_edge_y_interp))
+
+  return min(distance_to_lane, distance_to_road_edge)
+
 
 class FrogPilotPlanner:
-  def __init__(self, params):
-    self.DH = DesireHelper()
+  def __init__(self, params, params_memory):
     self.cem = ConditionalExperimentalMode()
     self.mtsc = MapTurnSpeedController()
 
@@ -66,10 +69,12 @@ class FrogPilotPlanner:
 
     self.x_desired_trajectory = np.zeros(CONTROL_N)
 
-    self.update_frogpilot_params(params)
+    self.update_frogpilot_params(params, params_memory)
 
   def update(self, sm, mpc):
     carState, controlsState, modelData = sm['carState'], sm['controlsState'], sm['modelV2']
+
+    enabled = controlsState.enabled
 
     v_cruise_kph = min(controlsState.vCruise, V_CRUISE_MAX)
     v_cruise = v_cruise_kph * CV.KPH_TO_MS
@@ -87,11 +92,11 @@ class FrogPilotPlanner:
       self.accel_limits = [A_CRUISE_MIN, get_max_accel(v_ego)]
 
     # Conditional Experimental Mode
-    if self.conditional_experimental_mode:
-      self.cem.update(carState, sm['frogpilotNavigation'], sm['modelV2'], sm['radarState'], carState.standstill, v_ego)
+    if self.conditional_experimental_mode and enabled:
+      self.cem.update(carState, sm['frogpilotNavigation'], sm['modelV2'], mpc, sm['radarState'], carState.standstill, v_ego)
 
     if v_ego > MIN_TARGET_V:
-      self.v_cruise = self.update_v_cruise(carState, controlsState, modelData, v_cruise, v_ego)
+      self.v_cruise = self.update_v_cruise(carState, controlsState, modelData, enabled, v_cruise, v_ego)
     else:
       self.mtsc_target = v_cruise
       self.vtsc_target = v_cruise
@@ -100,7 +105,7 @@ class FrogPilotPlanner:
     self.x_desired_trajectory_full = np.interp(ModelConstants.T_IDXS, T_IDXS_MPC, mpc.x_solution)
     self.x_desired_trajectory = self.x_desired_trajectory_full[:CONTROL_N]
 
-  def update_v_cruise(self, carState, controlsState, modelData, v_cruise, v_ego):
+  def update_v_cruise(self, carState, controlsState, modelData, enabled, v_cruise, v_ego):
     # Pfeiferj's Map Turn Speed Controller
     if self.map_turn_speed_controller:
       self.mtsc_target = np.clip(self.mtsc.target_speed(v_ego, carState.aEgo), MIN_TARGET_V, v_cruise)
@@ -117,12 +122,12 @@ class FrogPilotPlanner:
       # Override SLC upon gas pedal press and reset upon brake/cancel button
       if self.speed_limit_controller_override:
         self.override_slc |= carState.gasPressed
-        self.override_slc &= controlsState.enabled
+        self.override_slc &= enabled
         self.override_slc &= v_ego > self.slc_target
       else:
         self.override_slc = False
 
-      self.overridden_speed *= controlsState.enabled
+      self.overridden_speed *= enabled
 
       # Use the override speed if SLC is being overridden
       if self.override_slc:
@@ -182,30 +187,30 @@ class FrogPilotPlanner:
     frogpilotLongitudinalPlan = frogpilot_longitudinal_plan_send.frogpilotLongitudinalPlan
 
     frogpilotLongitudinalPlan.adjustedCruise = float(min(self.mtsc_target, self.vtsc_target) * (CV.MS_TO_KPH if self.is_metric else CV.MS_TO_MPH))
+    frogpilotLongitudinalPlan.conditionalExperimental = self.cem.experimental_mode
     frogpilotLongitudinalPlan.distances = self.x_desired_trajectory.tolist()
     frogpilotLongitudinalPlan.redLight = bool(self.cem.red_light_detected)
-
-    frogpilotLongitudinalPlan.slcOverridden = self.override_slc
-    frogpilotLongitudinalPlan.slcOverriddenSpeed = float(self.overridden_speed)
-    frogpilotLongitudinalPlan.slcSpeedLimit = float(self.slc_target)
-    frogpilotLongitudinalPlan.slcSpeedLimitOffset = float(SpeedLimitController.offset)
 
     frogpilotLongitudinalPlan.safeObstacleDistance = mpc.safe_obstacle_distance
     frogpilotLongitudinalPlan.stoppedEquivalenceFactor = mpc.stopped_equivalence_factor
     frogpilotLongitudinalPlan.desiredFollowDistance = mpc.safe_obstacle_distance - mpc.stopped_equivalence_factor
     frogpilotLongitudinalPlan.safeObstacleDistanceStock = mpc.safe_obstacle_distance_stock
 
+    frogpilotLongitudinalPlan.slcOverridden = self.override_slc
+    frogpilotLongitudinalPlan.slcOverriddenSpeed = float(self.overridden_speed)
+    frogpilotLongitudinalPlan.slcSpeedLimit = float(self.slc_target)
+    frogpilotLongitudinalPlan.slcSpeedLimitOffset = float(SpeedLimitController.offset)
+
     pm.send('frogpilotLongitudinalPlan', frogpilot_longitudinal_plan_send)
 
-  def update_frogpilot_params(self, params):
+  def update_frogpilot_params(self, params, params_memory):
     self.is_metric = params.get_bool("IsMetric")
 
-    self.average_desired_curvature = params.get_bool("AverageCurvature")
     self.blindspot_path = params.get_bool("CustomUI") and params.get_bool("BlindSpotPath")
 
     self.conditional_experimental_mode = params.get_bool("ConditionalExperimental")
     if self.conditional_experimental_mode:
-      self.cem.update_frogpilot_params(self.is_metric)
+      self.cem.update_frogpilot_params(self.is_metric, params)
       if not params.get_bool("ExperimentalMode"):
         params.put_bool("ExperimentalMode", True)
 
@@ -217,11 +222,14 @@ class FrogPilotPlanner:
     self.standard_jerk = params.get_int("StandardJerk") / 10
     self.relaxed_jerk = params.get_int("RelaxedJerk") / 10
 
-    self.longitudinal_tune = params.get_bool("LongitudinalTune")
-    self.acceleration_profile = params.get_int("AccelerationProfile") if self.longitudinal_tune else 0
-    self.aggressive_acceleration = params.get_bool("AggressiveAcceleration") and self.longitudinal_tune
-    self.increased_stopping_distance = params.get_int("StoppingDistance") * (1 if self.is_metric else CV.FOOT_TO_METER) if self.longitudinal_tune else 0
-    self.smoother_braking = params.get_bool("SmoothBraking") and self.longitudinal_tune
+    lateral_tune = params.get_bool("LateralTune")
+    self.average_desired_curvature = params.get_bool("AverageCurvature") and lateral_tune
+
+    longitudinal_tune = params.get_bool("LongitudinalTune")
+    self.acceleration_profile = params.get_int("AccelerationProfile") if longitudinal_tune else 0
+    self.aggressive_acceleration = params.get_bool("AggressiveAcceleration") and longitudinal_tune
+    self.increased_stopping_distance = params.get_int("StoppingDistance") * (1 if self.is_metric else CV.FOOT_TO_METER) if longitudinal_tune else 0
+    self.smoother_braking = params.get_bool("SmoothBraking") and longitudinal_tune
 
     self.map_turn_speed_controller = params.get_bool("MTSCEnabled")
 
@@ -231,8 +239,8 @@ class FrogPilotPlanner:
     self.one_lane_change = params.get_bool("OneLaneChange") if self.nudgeless else False
 
     self.speed_limit_controller = params.get_bool("SpeedLimitController")
-    self.speed_limit_controller_override = params.get_int("SLCOverride")
     if self.speed_limit_controller:
+      self.speed_limit_controller_override = params.get_int("SLCOverride")
       SpeedLimitController.update_frogpilot_params()
 
     self.turn_desires = params.get_bool("TurnDesires")

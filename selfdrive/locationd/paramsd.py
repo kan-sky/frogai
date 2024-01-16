@@ -14,6 +14,7 @@ from openpilot.selfdrive.locationd.models.car_kf import CarKalman, ObservationKi
 from openpilot.selfdrive.locationd.models.constants import GENERATED_DIR
 from openpilot.common.swaglog import cloudlog
 
+params_memory = Params("/dev/shm/params")
 
 MAX_ANGLE_OFFSET_DELTA = 20 * DT_MDL  # Max 20 deg/s
 ROLL_MAX_DELTA = math.radians(20.0) * DT_MDL  # 20deg in 1 second is well within curvature limits
@@ -26,7 +27,6 @@ OFFSET_LOWERED_MAX = 8.0
 MIN_ACTIVE_SPEED = 1.0
 LOW_ACTIVE_SPEED = 10.0
 
-params_memory = Params("/dev/shm/params")
 
 class ParamsLearner:
   def __init__(self, CP, steer_ratio, stiffness_factor, angle_offset, P_initial=None):
@@ -133,6 +133,11 @@ def main():
   with car.CarParams.from_bytes(params_reader.get("CarParams", block=True)) as msg:
     CP = msg
   cloudlog.info("paramsd got CarParams")
+
+  steer_ratio_stock = params_reader.get_int("SteerRatioStock")
+  if steer_ratio_stock != CP.steerRatio * 10:
+    params_reader.put_int("SteerRatio", CP.steerRatio * 10)
+    params_reader.put_int("SteerRatioStock", CP.steerRatio * 10)
 
   min_sr, max_sr = 0.5 * CP.steerRatio, 2.0 * CP.steerRatio
 

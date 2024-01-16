@@ -31,6 +31,9 @@ signals:
   void showDriverView();
   void expandToggleDescription(const QString &param);
 
+  // FrogPilot signals
+  void closeParentToggle();
+  void updateMetric();
 private:
   QPushButton *sidebar_alert_widget;
   QWidget *sidebar_widget;
@@ -38,9 +41,8 @@ private:
   QStackedWidget *panel_widget;
 
   // FrogPilot variables
+  bool frogPilotTogglesOpen;
   int previousScrollPosition;
-
-  Params paramsMemory{"/dev/shm/params"};
 };
 
 class DevicePanel : public ListWidget {
@@ -65,6 +67,10 @@ class TogglesPanel : public ListWidget {
 public:
   explicit TogglesPanel(SettingsWindow *parent);
   void showEvent(QShowEvent *event) override;
+
+signals:
+  // FrogPilot signals
+  void updateMetric();
 
 public slots:
   void expandToggleDescription(const QString &param);
@@ -102,9 +108,9 @@ private:
   // FrogPilot variables
   void automaticUpdate();
 
+  ButtonControl *updateTime;
+
   int deviceShutdown;
   int schedule;
   int time;
-
-  ButtonControl *updateTime;
 };

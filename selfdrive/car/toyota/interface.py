@@ -15,8 +15,11 @@ SteerControlType = car.CarParams.SteerControlType
 
 class CarInterface(CarInterfaceBase):
   @staticmethod
-  def get_pid_accel_limits(CP, current_speed, cruise_speed):
-    return CarControllerParams.ACCEL_MIN, CarControllerParams.ACCEL_MAX
+  def get_pid_accel_limits(CP, current_speed, cruise_speed, sport_plus):
+    if sport_plus:
+      return CarControllerParams.ACCEL_MIN, CarControllerParams.ACCEL_MAX_PLUS
+    else:
+      return CarControllerParams.ACCEL_MIN, CarControllerParams.ACCEL_MAX
 
   @staticmethod
   def _get_params(ret, candidate, fingerprint, car_fw, experimental_long, docs):
@@ -233,11 +236,11 @@ class CarInterface(CarInterfaceBase):
     # since we don't yet parse radar on TSS2/TSS-P radar-based ACC cars, gate longitudinal behind experimental toggle
     use_sdsu = bool(ret.flags & ToyotaFlags.SMART_DSU)
     if candidate in (RADAR_ACC_CAR | NO_DSU_CAR):
-      ret.experimentalLongitudinalAvailable = use_sdsu
+      ret.experimentalLongitudinalAvailable = use_sdsu or candidate in RADAR_ACC_CAR
 
       if not use_sdsu:
         # Disabling radar is only supported on TSS2 radar-ACC cars
-        if experimental_long and candidate in RADAR_ACC_CAR and False:  # TODO: disabling radar isn't supported yet
+        if experimental_long and candidate in RADAR_ACC_CAR:
           ret.flags |= ToyotaFlags.DISABLE_RADAR.value
       else:
         use_sdsu = use_sdsu and experimental_long
@@ -331,5 +334,5 @@ class CarInterface(CarInterfaceBase):
 
   # pass in a car.CarControl
   # to be called @ 100hz
-  def apply(self, c, now_nanos):
-    return self.CC.update(c, self.CS, now_nanos)
+  def apply(self, c, now_nanos, sport_plus):
+    return self.CC.update(c, self.CS, now_nanos, sport_plus)

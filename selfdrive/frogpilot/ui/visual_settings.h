@@ -11,16 +11,21 @@ class FrogPilotVisualsPanel : public FrogPilotListWidget {
 public:
   explicit FrogPilotVisualsPanel(SettingsWindow *parent);
 
+signals:
+  void closeParentToggle();
+  void openParentToggle();
+
 private:
   void hideEvent(QHideEvent *event);
   void hideSubToggles();
   void parentToggleClicked();
-  void updateState();
+  void updateMetric();
   void updateToggles();
 
   std::set<QString> customOnroadUIKeys;
   std::set<QString> customThemeKeys;
   std::set<QString> modelUIKeys;
+  std::set<QString> qolKeys;
 
   std::map<std::string, ParamControl*> toggles;
 

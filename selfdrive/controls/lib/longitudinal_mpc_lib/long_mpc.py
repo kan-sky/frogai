@@ -9,8 +9,6 @@ from openpilot.common.swaglog import cloudlog
 from openpilot.selfdrive.modeld.constants import index_function
 from openpilot.selfdrive.car.interfaces import ACCEL_MIN
 from openpilot.selfdrive.controls.radard import _LEAD_ACCEL_TAU
-from openpilot.common.params import Params
-
 
 if __name__ == '__main__':  # generating code
   from openpilot.third_party.acados.acados_template import AcadosModel, AcadosOcp, AcadosOcpSolver
@@ -56,7 +54,7 @@ T_IDXS = np.array(T_IDXS_LST)
 FCW_IDXS = T_IDXS < 5.0
 T_DIFFS = np.diff(T_IDXS, prepend=[0.])
 COMFORT_BRAKE = 2.5
-STOP_DISTANCE = float(int(Params().get("StopDistance", encoding="utf8"))) / 100. if Params().get("StopDistance", encoding="utf8") is not None else 6.0
+STOP_DISTANCE = 6.0
 
 def get_jerk_factor(custom_personalities=False, aggressive_jerk=0.5, standard_jerk=1.0, relaxed_jerk=1.0, personality=log.LongitudinalPersonality.standard):
   if custom_personalities:
@@ -243,18 +241,18 @@ def gen_long_ocp():
 
 class LongitudinalMpc:
   def __init__(self, mode='acc'):
-    self.mode = mode
-    self.solver = AcadosOcpSolverCython(MODEL_NAME, ACADOS_SOLVER_TYPE, N)
-    self.reset()
-    self.source = SOURCES[2]
-
     # FrogPilot variables
     self.safe_obstacle_distance = 0
     self.safe_obstacle_distance_stock = 0
     self.stopped_equivalence_factor = 0
     self.t_follow = 0
-    self.lo_timer = 0
-    self.stopDistance = STOP_DISTANCE 
+    self.t_follow_offset = 1
+
+    self.mode = mode
+    self.solver = AcadosOcpSolverCython(MODEL_NAME, ACADOS_SOLVER_TYPE, N)
+    self.reset()
+    self.source = SOURCES[2]
+
   def reset(self):
     # self.solver = AcadosOcpSolverCython(MODEL_NAME, ACADOS_SOLVER_TYPE, N)
     self.solver.reset()
@@ -284,7 +282,6 @@ class LongitudinalMpc:
     self.time_integrator = 0.0
     self.x0 = np.zeros(X_DIM)
     self.set_weights()
-    self.stopDistance = STOP_DISTANCE
 
   def set_cost_weights(self, cost_weights, constraint_cost_weights):
     W = np.asfortranarray(np.diag(cost_weights))
@@ -304,6 +301,7 @@ class LongitudinalMpc:
 
   def set_weights(self, prev_accel_constraint=True, custom_personalities=False, aggressive_jerk=0.5, standard_jerk=1.0, relaxed_jerk=1.0, personality=log.LongitudinalPersonality.standard):
     jerk_factor = get_jerk_factor(custom_personalities, aggressive_jerk, standard_jerk, relaxed_jerk, personality)
+    jerk_factor /= np.mean(self.t_follow_offset)
     if self.mode == 'acc':
       a_change_cost = A_CHANGE_COST if prev_accel_constraint else 0
       cost_weights = [X_EGO_OBSTACLE_COST, X_EGO_COST, V_EGO_COST, A_EGO_COST, jerk_factor * a_change_cost, jerk_factor * J_EGO_COST]
@@ -364,14 +362,6 @@ class LongitudinalMpc:
   def update(self, radarstate, v_cruise, x, v, a, j, aggressive_acceleration, increased_stopping_distance, smoother_braking, custom_personalities, aggressive_follow, standard_follow, relaxed_follow, personality=log.LongitudinalPersonality.standard):
     t_follow = get_T_FOLLOW(custom_personalities, aggressive_follow, standard_follow, relaxed_follow, personality)
     self.t_follow = t_follow
-
-    # live Tune
-    self.lo_timer += 1
-    if self.lo_timer > 200:
-      self.lo_timer = 0
-    elif self.lo_timer == 20:
-      self.stopDistance = float(int(Params().get("StopDistance", encoding="utf8"))) / 100.
-
     v_ego = self.x0[1]
     self.status = radarstate.leadOne.status or radarstate.leadTwo.status
 
@@ -381,9 +371,9 @@ class LongitudinalMpc:
     # Offset by FrogAi for FrogPilot for a more natural takeoff with a lead
     if aggressive_acceleration:
       distance_factor = np.maximum(1, lead_xv_0[:,0] - (lead_xv_0[:,1] * t_follow))
-      standstill_offset = max(STOP_DISTANCE - v_ego, 0)
-      t_follow_offset = np.clip((lead_xv_0[:,1] - v_ego) + standstill_offset, 1, distance_factor)
-      t_follow = t_follow / t_follow_offset
+      standstill_offset = max(STOP_DISTANCE + increased_stopping_distance - (v_ego**COMFORT_BRAKE), 0)
+      self.t_follow_offset = np.clip((lead_xv_0[:,1] - v_ego) + standstill_offset, 1, distance_factor)
+      t_follow = t_follow / self.t_follow_offset
 
     # Offset by FrogAi for FrogPilot for a more natural approach to a slower lead
     if smoother_braking:

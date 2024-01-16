@@ -48,8 +48,6 @@ def manager_init() -> None:
     ("LanguageSetting", "main_en"),
     ("OpenpilotEnabledToggle", "1"),
     ("LongitudinalPersonality", str(log.LongitudinalPersonality.standard)),
-    # APM tuning
-    ("StopDistance", "550"),
     # APM tuning(long)
      ("LongitudinalTuningKpV", "100"),
     # ("LongitudinalTuningKiV", "0"),     
@@ -60,7 +58,6 @@ def manager_init() -> None:
     ("LateralTorqueCustom", "1"),       
     ("LateralTorqueAccelFactor", "1440"),       
     ("LateralTorqueFriction", "60"),
-    ("SteerRatioApply", "140"),
     # NDA neokii 
     ("AutoNaviSpeedCtrlStart", "25"),
     ("AutoNaviSpeedCtrlEnd", "15"),
@@ -255,6 +252,8 @@ if __name__ == "__main__":
 
   try:
     main()
+  except KeyboardInterrupt:
+    print("got CTRL-C, exiting")
   except Exception:
     add_file_handler(cloudlog)
     cloudlog.exception("Manager failed to start")

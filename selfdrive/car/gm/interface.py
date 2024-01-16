@@ -37,8 +37,11 @@ NON_LINEAR_TORQUE_PARAMS = {
 
 class CarInterface(CarInterfaceBase):
   @staticmethod
-  def get_pid_accel_limits(CP, current_speed, cruise_speed):
-    return CarControllerParams.ACCEL_MIN, CarControllerParams.ACCEL_MAX
+  def get_pid_accel_limits(CP, current_speed, cruise_speed, sport_plus):
+    if sport_plus:
+      return CarControllerParams.ACCEL_MIN, CarControllerParams.ACCEL_MAX_PLUS
+    else:
+      return CarControllerParams.ACCEL_MIN, CarControllerParams.ACCEL_MAX
 
   # Determined by iteratively plotting and minimizing error for f(angle, speed) = steer.
   @staticmethod
@@ -78,10 +81,16 @@ class CarInterface(CarInterfaceBase):
 
   @staticmethod
   def _get_params(ret, candidate, fingerprint, car_fw, experimental_long, docs):
+    # FrogPilot variables
+    params = Params()
+    useGasRegenCmd = params.get_bool("GasRegenCmd")
+
     ret.carName = "gm"
     ret.safetyConfigs = [get_safety_config(car.CarParams.SafetyModel.gm)]
     ret.autoResumeSng = False
-    ret.enableGasInterceptor = PEDAL_MSG in fingerprint[0]
+    if PEDAL_MSG in fingerprint[0]:
+      ret.enableGasInterceptor = True
+      ret.safetyConfigs[0].safetyParam |= Panda.FLAG_GM_GAS_INTERCEPTOR
 
     useEVTables = Params().get_bool("EVTable")
 
@@ -113,6 +122,9 @@ class CarInterface(CarInterfaceBase):
       ret.stoppingDecelRate = 2.0  # reach brake quickly after enabling
       ret.vEgoStopping = 0.25
       ret.vEgoStarting = 0.25
+
+      if candidate in SLOW_ACC and useGasRegenCmd:
+        ret.longitudinalTuning.kpV = [1.5, 1.125]
 
       if experimental_long:
         ret.pcmCruise = False
@@ -188,6 +200,7 @@ class CarInterface(CarInterfaceBase):
         ret.longitudinalTuning.kpV = [1.75]
         ret.longitudinalTuning.kiBP = [0, 20 * CV.KPH_TO_MS, 30 * CV.KPH_TO_MS, 50 * CV.KPH_TO_MS, 70 * CV.KPH_TO_MS, 120 * CV.KPH_TO_MS]
         ret.longitudinalTuning.kiV = [0.35, 0.53, 0.62, 0.7, 0.5, 0.36]
+        ret.steerActuatorDelay = 0.18
         ret.stoppingDecelRate = 0.1 # brake_travel/s while trying to stop
         ret.stopAccel = -0.5
         ret.startAccel = 0.8
@@ -277,6 +290,8 @@ class CarInterface(CarInterfaceBase):
       ret.steerRatio = 16.3
       ret.centerToFront = ret.wheelbase * 0.5
       ret.tireStiffnessFactor = 1.0
+      if useGasRegenCmd:
+        ret.stopAccel = -0.25
       # On the Bolt, the ECM and camera independently check that you are either above 5 kph or at a stop
       # with foot on brake to allow engagement, but this platform only has that check in the camera.
       # TODO: check if this is split by EV/ICE with more platforms in the future
@@ -291,7 +306,7 @@ class CarInterface(CarInterfaceBase):
       ret.centerToFront = ret.wheelbase * 0.4
       CarInterfaceBase.configure_torque_tune(candidate, ret.lateralTuning)
 
-    elif candidate == CAR.TRAILBLAZER:
+    elif candidate in (CAR.TRAILBLAZER, CAR.TRAILBLAZER_CC):
       ret.mass = 1345.
       ret.wheelbase = 2.64
       ret.steerRatio = 16.8
@@ -444,20 +459,20 @@ class CarInterface(CarInterfaceBase):
     if self.belowSteerSpeed_shown and ret.vEgo > self.CP.minSteerSpeed:
       self.disable_belowSteerSpeed = True
 
+    if (self.CP.flags & GMFlags.CC_LONG.value) and ret.vEgo < self.CP.minEnableSpeed and ret.cruiseState.enabled:
+      events.add(EventName.speedTooLow)
+
     if (self.CP.flags & GMFlags.PEDAL_LONG.value) and \
       self.CP.transmissionType == TransmissionType.direct and \
       not self.CS.single_pedal_mode and \
       c.longActive:
-      events.add(FrogPilotEventName.pedalInterceptorNoBrake)
-
-    if (self.CP.flags & GMFlags.CC_LONG.value) and ret.vEgo < self.CP.minEnableSpeed and ret.cruiseState.enabled:
-      events.add(EventName.speedTooLow)
+      events.add(EventName.pedalInterceptorNoBrake)
 
     ret.events = events.to_msg()
 
     return ret
 
-  def apply(self, c, now_nanos):
+  def apply(self, c, now_nanos, sport_plus):
     can_sends = self.CC.update(c, self.CS, now_nanos)
     # Release Auto Hold and creep smoothly when regenpaddle pressed
     if self.CS.out.regenBraking and self.CS.autoHold:

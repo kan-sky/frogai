@@ -100,6 +100,7 @@ FrogPilotVehiclesPanel::FrogPilotVehiclesPanel(SettingsWindow *parent) : FrogPil
 
   std::vector<std::tuple<QString, QString, QString, QString>> vehicleToggles {
     {"EVTable", "EV Lookup Tables", "Smoothen out the gas and brake controls for EV vehicles.", ""},
+    {"GasRegenCmd", "Gas Regen Cmd", "", ""},
     {"LongPitch", "Long Pitch Compensation", "Reduce speed and acceleration error for greater passenger comfort and improved vehicle efficiency.", ""},
     {"LowerVolt", "Lower Volt Enable Speed", "Lower the Volt's minimum enable speed to enable openpilot at any speed.", ""},
 
@@ -116,18 +117,14 @@ FrogPilotVehiclesPanel::FrogPilotVehiclesPanel(SettingsWindow *parent) : FrogPil
     toggles[param.toStdString()] = toggle;
 
     QObject::connect(toggle, &ToggleControl::toggleFlipped, [this]() {
-      std::thread([this]() {
-        paramsMemory.putBool("FrogPilotTogglesUpdated", true);
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        paramsMemory.putBool("FrogPilotTogglesUpdated", false);
-      }).detach();
+      updateToggles();
     });
   }
 
-  gmKeys = {"EVTable", "LongPitch", "LowerVolt"};
+  gmKeys = {"EVTable", "GasRegenCmd", "LongPitch", "LowerVolt"};
   toyotaKeys = {"LockDoors", "SNGHack", "TSS2Tune"};
 
-  std::set<std::string> rebootKeys = {"TSS2Tune"};
+  std::set<std::string> rebootKeys = {"EVTable", "GasRegenCmd", "LongPitch", "LowerVolt", "TSS2Tune"};
   for (const std::string &key : rebootKeys) {
     QObject::connect(toggles[key], &ToggleControl::toggleFlipped, [this]() {
       if (FrogPilotConfirmationDialog::toggle("Reboot required to take effect.", "Reboot Now", this)) {
@@ -152,6 +149,14 @@ FrogPilotVehiclesPanel::FrogPilotVehiclesPanel(SettingsWindow *parent) : FrogPil
   if (!carMake.isEmpty()) {
     setModels();
   }
+}
+
+void FrogPilotVehiclesPanel::updateToggles() {
+  std::thread([this]() {
+    paramsMemory.putBool("FrogPilotTogglesUpdated", true);
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    paramsMemory.putBool("FrogPilotTogglesUpdated", false);
+  }).detach();
 }
 
 void FrogPilotVehiclesPanel::setModels() {

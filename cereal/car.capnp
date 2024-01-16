@@ -413,6 +413,7 @@ struct CarControl {
       prompt @6;
       promptRepeat @7;
       promptDistracted @8;
+      firefox @13;
       autoHold @9;
       speedDown @10;
       reverseGear @11;

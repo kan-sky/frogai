@@ -1,6 +1,7 @@
 import math
 import numpy as np
 import time
+import threading
 import wave
 
 from typing import Dict, Optional, Tuple
@@ -18,6 +19,7 @@ from openpilot.common.params import Params
 from openpilot.common.swaglog import cloudlog
 
 SAMPLE_RATE = 48000
+SAMPLE_BUFFER = 4096 # (approx 100ms)
 MAX_VOLUME = 1.0
 MIN_VOLUME = 0.1
 CONTROLS_TIMEOUT = 5 # 5 seconds
@@ -42,6 +44,7 @@ sound_list: Dict[int, Tuple[str, Optional[int], float]] = {
   AudibleAlert.warningSoft: ("warning_soft.wav", None, MAX_VOLUME),
   AudibleAlert.warningImmediate: ("warning_immediate.wav", None, MAX_VOLUME),
 
+  AudibleAlert.firefox: ("firefox.wav", None, MAX_VOLUME),
   AudibleAlert.autoHold: ("audio_auto_hold.wav", None, MAX_VOLUME),
   AudibleAlert.speedDown: ("audio_speed_down.wav", None, MAX_VOLUME),
   AudibleAlert.reverseGear: ("reverse_gear.wav", None, MAX_VOLUME),
@@ -117,9 +120,9 @@ class Soundd:
       actual_sample_rate = wavefile.getframerate()
 
       nchannels = wavefile.getnchannels()
-      print("nchannels=", nchannels, ",sound=", sound_list[sound])
+      #print("nchannels=", nchannels, ",sound=", sound_list[sound])
       assert nchannels in [1,2]
-      print("loading...")
+      #print("loading...")
 
       length = wavefile.getnframes()
       frames = wavefile.readframes(length)
@@ -179,24 +182,29 @@ class Soundd:
     volume = ((weighted_db - AMBIENT_DB) / DB_SCALE) * (MAX_VOLUME - MIN_VOLUME) + MIN_VOLUME
     return math.pow(10, (np.clip(volume, MIN_VOLUME, MAX_VOLUME) - 1))
 
+  @retry(attempts=7, delay=3)
+  def get_stream(self, sd):
+    # reload sounddevice to reinitialize portaudio
+    sd._terminate()
+    sd._initialize()
+    return sd.OutputStream(channels=1, samplerate=SAMPLE_RATE, callback=self.callback, blocksize=SAMPLE_BUFFER)
+
   def soundd_thread(self):
     # sounddevice must be imported after forking processes
     import sounddevice as sd
 
-    if TICI:
-      micd.wait_for_devices(sd) # wait for alsa to be initialized on device
+    sm = messaging.SubMaster(['controlsState', 'microphone'])
 
-    with sd.OutputStream(channels=1, samplerate=SAMPLE_RATE, callback=self.callback) as stream:
+    with self.get_stream(sd) as stream:
       rk = Ratekeeper(20)
-      sm = messaging.SubMaster(['controlsState', 'microphone'])
 
-      cloudlog.info(f"soundd stream started: {stream.samplerate=} {stream.channels=} {stream.dtype=} {stream.device=}")
+      cloudlog.info(f"soundd stream started: {stream.samplerate=} {stream.channels=} {stream.dtype=} {stream.device=}, {stream.blocksize=}")
       while True:
         sm.update(0)
 
         if sm.updated['microphone'] and self.current_alert == AudibleAlert.none: # only update volume filter when not playing alert
           self.spl_filter_weighted.update(sm["microphone"].soundPressureWeightedDb)
-          self.current_volume = max(self.calculate_volume(float(self.spl_filter_weighted.x)) - self.silent_mode, 0)
+          self.current_volume = self.calculate_volume(float(self.spl_filter_weighted.x)) if not self.silent_mode else 0
 
         self.get_audible_alert(sm)
 
@@ -206,7 +214,8 @@ class Soundd:
 
     # Update FrogPilot parameters
     if self.params_memory.get_bool("FrogPilotTogglesUpdated"):
-      self.update_frogpilot_params()
+      updateFrogPilotParams = threading.Thread(target=self.update_frogpilot_params)
+      updateFrogPilotParams.start()
 
   def update_frogpilot_params(self):
     self.silent_mode = self.params.get_bool("SilentMode")

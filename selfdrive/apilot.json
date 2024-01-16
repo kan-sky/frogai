@@ -3,19 +3,6 @@
   "params": [
     {
       "group": "정지",
-      "name": "StopDistance",
-      "title": "정지거리(600cm)",
-      "descr": "선행차와 정지하는 거리를 입력합니다.",
-      "egroup": "STOP",
-      "etitle": "StopDistance(600cm)",
-      "edescr": "Adjust stop distance",
-      "min": 200,
-      "max": 1000,
-      "default": 600,
-      "unit": 50
-    },
-    {
-      "group": "정지",
       "name": "TrafficStopDistanceAdjust",
       "title": "신호정지 위치조정(200cm)",
       "descr": "+값으로 하면 정지선에 다가갑니다.",
