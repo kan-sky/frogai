@@ -362,9 +362,9 @@ class CarInterface(CarInterfaceBase):
         ret.safetyConfigs[0].safetyParam |= Panda.FLAG_GM_PEDAL_LONG
         # Note: Low speed, stop and go not tested. Should be fairly smooth on highway
         ret.longitudinalTuning.kpBP = [5., 35.]
-        ret.longitudinalTuning.kpV = [0.35, 0.5]
+        ret.longitudinalTuning.kpV = [0.1833, 0.1500] #Bolt
         ret.longitudinalTuning.kiBP = [0., 35.0]
-        ret.longitudinalTuning.kiV = [0.1, 0.1]
+        ret.longitudinalTuning.kiV = [0.05, 0.05] #Bolt
         ret.longitudinalTuning.kf = 0.15
         ret.stoppingDecelRate = 0.8
       else:  # Pedal used for SNG, ACC for longitudinal control otherwise
@@ -459,14 +459,14 @@ class CarInterface(CarInterfaceBase):
     if self.belowSteerSpeed_shown and ret.vEgo > self.CP.minSteerSpeed:
       self.disable_belowSteerSpeed = True
 
-    if (self.CP.flags & GMFlags.CC_LONG.value) and ret.vEgo < self.CP.minEnableSpeed and ret.cruiseState.enabled:
-      events.add(EventName.speedTooLow)
-
     if (self.CP.flags & GMFlags.PEDAL_LONG.value) and \
       self.CP.transmissionType == TransmissionType.direct and \
       not self.CS.single_pedal_mode and \
       c.longActive:
-      events.add(EventName.pedalInterceptorNoBrake)
+      events.add(FrogPilotEventName.pedalInterceptorNoBrake)
+
+    if (self.CP.flags & GMFlags.CC_LONG.value) and ret.vEgo < self.CP.minEnableSpeed and ret.cruiseState.enabled:
+      events.add(EventName.speedTooLow)
 
     ret.events = events.to_msg()
 

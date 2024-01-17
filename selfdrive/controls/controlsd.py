@@ -237,6 +237,7 @@ class Controls:
 
     # controlsd is driven by can recv, expected at 100Hz
     self.rk = Ratekeeper(100, print_delay_threshold=None)
+    self.regenPressed = False # Bolt
 
   def reset(self):
     self.slowing_down_sound_alert = False
@@ -556,6 +557,11 @@ class Controls:
 
   def state_transition(self, CS):
     """Compute conditional state transitions and execute actions on state transitions"""
+    # Bolt, regen state
+    if CS.regenPressed:
+      self.regenPressed = True
+    else:
+      self.regenPressed = False
 
     self.v_cruise_helper.update_v_cruise(CS, self.enabled, self.is_metric, self.reverse_cruise_increase, self.set_speed_offset)
     # NDA neokii
@@ -836,6 +842,9 @@ class Controls:
     speeds = self.sm['longitudinalPlan'].speeds
     if len(speeds):
       CC.cruiseControl.resume = self.enabled and CS.cruiseState.standstill and speeds[-1] > 0.1
+      # ajouatom
+      vCluRatio = CS.vCluRatio if CS.vCluRatio > 0.5 else 1.0
+      setSpeed = speeds[-1] / vCluRatio
 
     hudControl = CC.hudControl
     hudControl.setSpeed = float(self.v_cruise_kph_limit * CV.KPH_TO_MS)
@@ -843,8 +852,8 @@ class Controls:
     hudControl.lanesVisible = self.enabled
     hudControl.leadVisible = self.sm['longitudinalPlan'].hasLead
 
-    hudControl.rightLaneVisible = True
-    hudControl.leftLaneVisible = True
+    hudControl.rightLaneVisible = CC.latActive
+    hudControl.leftLaneVisible = CC.latActive
 
     recent_blinker = (self.sm.frame - self.last_blinker_frame) * DT_CTRL < 5.0  # 5s blinker cooldown
     ldw_allowed = self.is_ldw_enabled and CS.vEgo > LDW_MIN_SPEED and not recent_blinker \
@@ -1051,7 +1060,11 @@ class Controls:
     self.green_light_alert = self.params.get_bool("GreenLightAlert")
 
     lateral_tune = self.params.get_bool("LateralTune")
-    self.steer_ratio = self.params.get_int("SteerRatio") / 10 if lateral_tune else self.params.get_int("SteerRatioStock") / 10
+    # ajouatom
+    steer_ratio = float(self.params.get_int("SteerRatio")) / 10.0
+    steer_ratio_stock = float(self.params.get_int("SteerRatioStock")) / 10.0
+    steer_ratio = steer_ratio if steer_ratio_stock * 0.5 < steer_ratio < steer_ratio_stock * 1.5 else steer_ratio_stock
+    self.steer_ratio = steer_ratio if lateral_tune or steer_ratio > 0 else steer_ratio_stock
 
     longitudinal_tune = self.params.get_bool("LongitudinalTune")
     self.sport_plus = self.params.get_int("AccelerationProfile") == 3 and longitudinal_tune

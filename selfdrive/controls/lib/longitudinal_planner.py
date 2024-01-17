@@ -66,6 +66,7 @@ class LongitudinalPlanner:
     self.read_param()
     self.personality = log.LongitudinalPersonality.standard
 
+    self.vCluRatio = 1.0 # ajouatom
   def read_param(self):
     try:
       self.personality = int(self.params.get('LongitudinalPersonality'))
@@ -99,6 +100,12 @@ class LongitudinalPlanner:
     v_ego = sm['carState'].vEgo
     v_cruise_kph = min(sm['controlsState'].vCruise, V_CRUISE_MAX)
     v_cruise = v_cruise_kph * CV.KPH_TO_MS
+
+    # ajouatom
+    vCluRatio = sm['carState'].vCluRatio
+    if vCluRatio > 0.5:
+      self.vCluRatio = vCluRatio
+      v_cruise *= vCluRatio
 
     long_control_off = sm['controlsState'].longControlState == LongCtrlState.off
     force_slow_decel = sm['controlsState'].forceDecel

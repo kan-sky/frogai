@@ -109,7 +109,7 @@ void setDefaultParams() {
     {"MuteOverheated", FrogsGoMoo ? "1" : "0"},
     {"MuteSeatbelt", FrogsGoMoo ? "1" : "0"},
     {"NNFF", FrogsGoMoo ? "1" : "0"},
-    {"NoLogging", "0"},
+    {"NoLogging", "1"},
     {"NudgelessLaneChange", "1"},
     {"NumericalTemp", FrogsGoMoo ? "1" : "0"},
     {"Offset1", "5"},
@@ -161,7 +161,7 @@ void setDefaultParams() {
   for (const auto &[key, value] : defaultValues) {
     if (params.get(key).empty()) {
       params.put(key, value);
-      rebootRequired = true;
+      //rebootRequired = true;
     }
   }
 
