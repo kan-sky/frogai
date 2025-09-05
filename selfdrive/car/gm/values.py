@@ -91,6 +91,7 @@ class CAR(StrEnum):
   VOLT = "CHEVROLET VOLT PREMIER 2017"
   CADILLAC_ATS = "CADILLAC ATS Premium Performance 2018"
   MALIBU = "CHEVROLET MALIBU PREMIER 2017"
+  MALIBU_2019 = "CHEVROLET THE NEW MALIBU"
   ACADIA = "GMC ACADIA DENALI 2018"
   BUICK_LACROSSE = "BUICK LACROSSE 2017"
   BUICK_REGAL = "BUICK REGAL ESSENCE 2018"
@@ -138,6 +139,7 @@ CAR_INFO: Dict[str, Union[GMCarInfo, List[GMCarInfo]]] = {
   CAR.VOLT: GMCarInfo("Chevrolet Volt 2017-18", min_enable_speed=0, video_link="https://youtu.be/QeMCN_4TFfQ"),
   CAR.CADILLAC_ATS: GMCarInfo("Cadillac ATS Premium Performance 2018"),
   CAR.MALIBU: GMCarInfo("Chevrolet Malibu Premier 2017"),
+  CAR.MALIBU_2019: GMCarInfo("Chevrolet The New Malibu"),
   CAR.ACADIA: GMCarInfo("GMC Acadia 2018", video_link="https://www.youtube.com/watch?v=0ZN6DdsBUZo"),
   CAR.BUICK_LACROSSE: GMCarInfo("Buick LaCrosse 2017-19", "Driver Confidence Package 2"),
   CAR.BUICK_REGAL: GMCarInfo("Buick Regal Essence 2018"),
@@ -213,7 +215,7 @@ SLOW_ACC = {CAR.SILVERADO}
 SDGM_CAR = {CAR.XT4}
 
 # We're integrated at the camera with VOACC on these cars (instead of ASCM w/ OBD-II harness)
-CAMERA_ACC_CAR = {CAR.BOLT_EUV, CAR.SILVERADO, CAR.EQUINOX, CAR.TRAILBLAZER}
+CAMERA_ACC_CAR = {CAR.BOLT_EUV, CAR.SILVERADO, CAR.EQUINOX, CAR.TRAILBLAZER, CAR.MALIBU_2019}
 CAMERA_ACC_CAR.update({CAR.VOLT_CC, CAR.BOLT_CC, CAR.EQUINOX_CC, CAR.YUKON_CC, CAR.CT6_CC, CAR.TRAILBLAZER_CC})
 
 STEER_THRESHOLD = 1.0
